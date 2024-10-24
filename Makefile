@@ -8,6 +8,8 @@ endif
 
 build: prebuild
 	@$(MAKE) -f common.mk $@
+	@cat splash.txt
 
 program: prebuild
 	@$(MAKE) -f common.mk $@
+	@cat splash.txt
