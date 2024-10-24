@@ -44,7 +44,7 @@ MTB_TYPE=COMBINED
 TARGET=APP_CY8CPROTO-063-BLE
 
 # Name of application (used to derive name of final linked file).
-APPNAME=mtb-example-btstack-freertos-hello-sensor
+APPNAME=bucky-kart
 
 # Name of toolchain to use. Options include:
 #

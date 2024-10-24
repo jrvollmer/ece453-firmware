@@ -246,11 +246,11 @@ void app_kvstore_bd_init(void)
     /*Check if the QSPI initialization was successful */
     if (CY_RSLT_SUCCESS == rslt)
     {
-        printf("successfully initialized QSPI \n");
+        // printf("successfully initialized QSPI \n");
     }
     else
     {
-        printf("failed to initialize QSPI \n");
+        // printf("failed to initialize QSPI \n");
         CY_ASSERT(0);
     }
 

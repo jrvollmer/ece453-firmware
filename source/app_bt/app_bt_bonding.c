@@ -95,7 +95,7 @@ void app_kv_store_init(void)
     /*Check if the kv-store initialization was successful*/
     if (CY_RSLT_SUCCESS != rslt)
     {
-        printf("failed to initialize kv-store \n");
+        // printf("failed to initialize kv-store \n");
         CY_ASSERT(0);
     }
 }
@@ -120,7 +120,7 @@ cy_rslt_t app_bt_restore_bond_data(void)
     cy_rslt_t rslt = mtb_kvstore_read(&kvstore_obj, "bond_data", (uint8_t *)&bond_info, &data_size);
     if (rslt != CY_RSLT_SUCCESS)
     {
-        printf("Bond data not present in the flash!\n");
+        // printf("Bond data not present in the flash!\n");
         return rslt;
     }
     return rslt;
@@ -146,7 +146,7 @@ cy_rslt_t app_bt_update_bond_data(void)
     rslt = mtb_kvstore_write(&kvstore_obj, "bond_data", (uint8_t *)&bond_info, sizeof(bond_info));
     if (CY_RSLT_SUCCESS != rslt)
     {
-        printf("Flash Write Error,Error code: %" PRIu32 "\n", rslt);
+        // printf("Flash Write Error,Error code: %" PRIu32 "\n", rslt);
     }
     return rslt;
 }
@@ -279,7 +279,7 @@ cy_rslt_t app_bt_save_device_link_keys(wiced_bt_device_link_keys_t *link_key)
         rslt = mtb_kvstore_write(&kvstore_obj, "bond_data", (uint8_t *)&bond_info, sizeof(bond_info));
         if (CY_RSLT_SUCCESS != rslt)
         {
-            printf("Flash Write Error,Error code: %" PRIu32 "\n", rslt );
+            // printf("Flash Write Error,Error code: %" PRIu32 "\n", rslt );
         }
     }
     /* If there is no entry of keys in NVRAM, create a fresh entry in next free slot */
@@ -291,7 +291,7 @@ cy_rslt_t app_bt_save_device_link_keys(wiced_bt_device_link_keys_t *link_key)
         rslt = mtb_kvstore_write(&kvstore_obj, "bond_data", (uint8_t *)&bond_info, sizeof(bond_info));
         if (CY_RSLT_SUCCESS != rslt)
         {
-            printf("Flash Write Error,Error code: %" PRIu32 "\n", rslt );
+            // printf("Flash Write Error,Error code: %" PRIu32 "\n", rslt );
         }
     }
     return rslt;
@@ -316,11 +316,11 @@ cy_rslt_t app_bt_save_local_identity_key(wiced_bt_local_identity_keys_t id_key)
     cy_rslt_t rslt = mtb_kvstore_write(&kvstore_obj, "local_irk", (uint8_t *)&identity_keys, sizeof(wiced_bt_local_identity_keys_t));
     if (CY_RSLT_SUCCESS == rslt)
     {
-        printf("Local identity Keys saved to Flash \n");
+        // printf("Local identity Keys saved to Flash \n");
     }
     else
     {
-        printf("Flash Write Error,Error code: %" PRIu32 "\n", rslt );
+        // printf("Flash Write Error,Error code: %" PRIu32 "\n", rslt );
     }
 
     return rslt;
@@ -345,13 +345,13 @@ cy_rslt_t app_bt_read_local_identity_keys(void)
     cy_rslt_t rslt = mtb_kvstore_read(&kvstore_obj, "local_irk", NULL, &data_size);
     if (rslt != CY_RSLT_SUCCESS)
     {
-        printf("New Keys need to be generated! \n");
+        // printf("New Keys need to be generated! \n");
     }
     else
     {
-        printf("Identity keys are available in the database.\n");
+        // printf("Identity keys are available in the database.\n");
         rslt = mtb_kvstore_read(&kvstore_obj, "local_irk", (uint8_t *)&identity_keys, &data_size);
-        printf("Local identity keys read from Flash: \n");
+        // printf("Local identity keys read from Flash: \n");
     }
     return rslt;
 }
@@ -373,7 +373,7 @@ cy_rslt_t app_bt_update_cccd(uint16_t cccd, uint8_t index)
 {
     cy_rslt_t rslt = CY_RSLT_TYPE_ERROR;
     peer_cccd_data[index]= cccd;
-    printf("Updating CCCD Value to: %d \n",cccd);
+    // printf("Updating CCCD Value to: %d \n",cccd);
     rslt = mtb_kvstore_write(&kvstore_obj, "cccd_data", (uint8_t *)&peer_cccd_data, sizeof(peer_cccd_data));
     return rslt;
 }
@@ -419,7 +419,7 @@ uint8_t app_bt_find_device_in_flash(uint8_t *bd_addr)
     {
         if (0 == memcmp(&(bond_info.link_keys[count].bd_addr), bd_addr, sizeof(wiced_bt_device_address_t)))
         {
-            printf("Found device in the flash!\n");
+            // printf("Found device in the flash!\n");
             index = count;
             break; /* Exit the loop since we found what we want */
         }
@@ -448,12 +448,12 @@ void app_bt_add_devices_to_address_resolution_db(void)
         wiced_result_t result = wiced_bt_dev_add_device_to_address_resolution_db(&bond_info.link_keys[i]);
         if (WICED_BT_SUCCESS == result)
         {
-            printf("Device added to address resolution database: ");
+            // printf("Device added to address resolution database: ");
             print_bd_address((uint8_t *)&bond_info.link_keys[i].bd_addr);
         }
         else
         {
-            printf("Error adding device to address resolution database, Error Code %d \n", result);
+            // printf("Error adding device to address resolution database, Error Code %d \n", result);
         }
     }
 }
@@ -474,12 +474,12 @@ void print_bond_data()
 {
     for (uint8_t i = 0; i < bond_info.slot_data[NUM_BONDED]; i++)
     {
-        printf("Slot: %d",i+1);
-        printf("Device Bluetooth Address: ");
+        // printf("Slot: %d",i+1);
+        // printf("Device Bluetooth Address: ");
         print_bd_address(bond_info.link_keys[i].bd_addr);
-        printf("Device Keys: \n");
+        // printf("Device Keys: \n");
         print_array(&(bond_info.link_keys[i].key_data), sizeof(wiced_bt_device_sec_keys_t));
-        printf("\n");
+        // printf("\n");
     }
 }
 

@@ -262,7 +262,7 @@ void app_kvstore_bd_init(void)
     result = cyhal_flash_init(&flash_obj);
     if(result != CY_RSLT_SUCCESS)
     {
-        printf("Internal flash initialization failed! \n");
+        // printf("Internal flash initialization failed! \n");
         CY_ASSERT(0);
     }
 

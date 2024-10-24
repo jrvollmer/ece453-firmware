@@ -105,7 +105,9 @@ app_bt_management_callback(wiced_bt_management_evt_t event, wiced_bt_management_
     wiced_bt_device_address_t local_bda = {0x00, 0xA0, 0x50,
                                            0x011, 0x44, 0x55};
 
-    printf("Event:%s\n", get_btm_event_name(event));
+    UNUSED_VARIABLE(p_info);
+
+    // printf(("Event:%s\n", get_btm_event_name(event));
 
     switch (event)
     {
@@ -115,7 +117,7 @@ app_bt_management_callback(wiced_bt_management_evt_t event, wiced_bt_management_
             {
                 wiced_bt_set_local_bdaddr(local_bda, BLE_ADDR_PUBLIC);
                 wiced_bt_dev_read_local_addr(local_bda);
-                printf("Local Bluetooth Address: ");
+                // printf(("Local Bluetooth Address: ");
                 print_bd_address(local_bda);
 
                 /* Perform application-specific initialization */
@@ -123,7 +125,7 @@ app_bt_management_callback(wiced_bt_management_evt_t event, wiced_bt_management_
             }
             else
             {
-                printf("Bluetooth enable failed \n");
+                // printf(("Bluetooth enable failed \n");
             }
             break;
 
@@ -147,8 +149,8 @@ app_bt_management_callback(wiced_bt_management_evt_t event, wiced_bt_management_
 
         case BTM_PAIRING_COMPLETE_EVT:
             p_info = &p_event_data->pairing_complete.pairing_complete_info.ble;
-            printf("Hello sensor, Pairing Complete Reason: %s \n",
-                    get_bt_smp_status_name((wiced_bt_smp_status_t) p_info->reason));
+            // printf(("Hello sensor, Pairing Complete Reason: %s \n",
+                    // get_bt_smp_status_name((wiced_bt_smp_status_t) p_info->reason));
             /* Update Num of bonded devices and next free slot in slot data*/
             rslt = app_bt_update_slot_data();
             break;
@@ -156,8 +158,8 @@ app_bt_management_callback(wiced_bt_management_evt_t event, wiced_bt_management_
 
         case BTM_BLE_ADVERT_STATE_CHANGED_EVT:
             p_mode = &p_event_data->ble_advert_state_changed;
-            printf("Advertisement State Change: %s\n",
-                    get_bt_advert_mode_name(*p_mode));
+            // printf(("Advertisement State Change: %s\n",
+                    // get_bt_advert_mode_name(*p_mode));
             if (BTM_BLE_ADVERT_OFF == *p_mode)
             {
                 app_bt_adv_stop_handler();
@@ -169,18 +171,18 @@ app_bt_management_callback(wiced_bt_management_evt_t event, wiced_bt_management_
             rslt = app_bt_save_device_link_keys(&(p_event_data->paired_device_link_keys_update));
             if (CY_RSLT_SUCCESS == rslt)
             {
-                printf("Successfully Bonded to ");
+                // printf(("Successfully Bonded to ");
                 print_bd_address(p_event_data->paired_device_link_keys_update.bd_addr);
             }
             else
             {
-                printf("Failed to bond! \n");
+                // printf(("Failed to bond! \n");
             }
             break;
 
         case  BTM_PAIRED_DEVICE_LINK_KEYS_REQUEST_EVT:
             /* Paired Device Link Keys Request */
-            printf("Paired Device Link keys Request Event for device ");
+            // printf(("Paired Device Link keys Request Event for device ");
             print_bd_address((uint8_t *)(p_event_data->paired_device_link_keys_request.bd_addr));
 
             /* Need to search to see if the BD_ADDR we are
@@ -204,7 +206,7 @@ app_bt_management_callback(wiced_bt_management_evt_t event, wiced_bt_management_
             }
             else
             {
-                printf("Device Link Keys not found in the database! \n");
+                // printf(("Device Link Keys not found in the database! \n");
             }
             break;
 
@@ -236,7 +238,7 @@ app_bt_management_callback(wiced_bt_management_evt_t event, wiced_bt_management_
 
         case BTM_ENCRYPTION_STATUS_EVT:
             p_status = &p_event_data->encryption_status;
-            printf("Encryption status changed, BDA:");
+            // printf(("Encryption status changed, BDA:");
             print_bd_address(p_status->bd_addr);
             /* Check and retreive the index of the bond data of the device that
              * got connected */
@@ -248,12 +250,12 @@ app_bt_management_callback(wiced_bt_management_evt_t event, wiced_bt_management_
                 app_bt_restore_cccd();
                 /* Set CCCD value from the value that was previously saved in the NVRAM */
                 app_hello_sensor_notify_client_char_config[0] = peer_cccd_data[bondindex];
-                printf("Bond info present in Flash for device: ");
+                // printf(("Bond info present in Flash for device: ");
                 print_bd_address(p_event_data->encryption_status.bd_addr);
             }
             else
             {
-                printf("No Bond info present in Flash for device: ");
+                // printf(("No Bond info present in Flash for device: ");
                 print_bd_address(p_event_data->encryption_status.bd_addr);
                 bondindex=0;
             }
@@ -265,26 +267,26 @@ app_bt_management_callback(wiced_bt_management_evt_t event, wiced_bt_management_
             break;
 
         case BTM_BLE_CONNECTION_PARAM_UPDATE:
-            printf("Connection parameter update status:%d, "
-                   "Connection Interval: %d, "
-                   "Connection Latency: %d, "
-                   "Connection Timeout: %d\n",
-                    p_event_data->ble_connection_param_update.status,
-                    p_event_data->ble_connection_param_update.conn_interval,
-                    p_event_data->ble_connection_param_update.conn_latency,
-                    p_event_data->ble_connection_param_update.supervision_timeout);
+            // printf(("Connection parameter update status:%d, "
+                //    "Connection Interval: %d, "
+                //    "Connection Latency: %d, "
+                //    "Connection Timeout: %d\n",
+                //     p_event_data->ble_connection_param_update.status,
+                //     p_event_data->ble_connection_param_update.conn_interval,
+                //     p_event_data->ble_connection_param_update.conn_latency,
+                //     p_event_data->ble_connection_param_update.supervision_timeout);
             break;
 
         case BTM_BLE_PHY_UPDATE_EVT:
             /* Print the updated BLE physical link*/
-            printf("Selected TX PHY - %dM\n Selected RX PHY - %dM\n",
-                    p_event_data->ble_phy_update_event.tx_phy,
-                    p_event_data->ble_phy_update_event.rx_phy);
+            // printf(("Selected TX PHY - %dM\n Selected RX PHY - %dM\n",
+                    // p_event_data->ble_phy_update_event.tx_phy,
+                    // p_event_data->ble_phy_update_event.rx_phy);
             break;
 
         default:
-            printf("Unhandled Bluetooth Management Event: 0x%x %s\n",
-                    event, get_btm_event_name(event));
+            // printf(("Unhandled Bluetooth Management Event: 0x%x %s\n",
+                    // event, get_btm_event_name(event));
             break;
     }
     return result;
@@ -330,11 +332,13 @@ void app_bt_application_init(void)
     wiced_result_t result = WICED_BT_SUCCESS;
     wiced_bt_gatt_status_t gatt_status = WICED_BT_GATT_SUCCESS;
 
+    UNUSED_VARIABLE(gatt_status);
+
     #ifdef ENABLE_BT_SPY_LOG
     wiced_bt_dev_register_hci_trace(hci_trace_cback);
     #endif
 
-    printf("\nHello sensor application init\n");
+    // printf(("\nHello sensor application init\n");
 
     app_bt_interrupt_config();
 
@@ -342,7 +346,7 @@ void app_bt_application_init(void)
 
     if(CY_RSLT_SUCCESS == app_bt_restore_bond_data())
     {
-        printf("Keys found in NVRAM, add them to Addr Res DB\n");
+        // printf(("Keys found in NVRAM, add them to Addr Res DB\n");
         /* Load previous paired keys for address resolution */
         app_bt_add_devices_to_address_resolution_db();
     }
@@ -356,13 +360,13 @@ void app_bt_application_init(void)
 
     /* Register with BT stack to receive GATT callback */
     gatt_status = wiced_bt_gatt_register(app_bt_gatt_callback);
-    printf("GATT event Handler registration status: %s \n",
-            get_bt_gatt_status_name(gatt_status));
+    // printf(("GATT event Handler registration status: %s \n",
+            // get_bt_gatt_status_name(gatt_status));
 
     /* Initialize GATT Database */
     gatt_status = wiced_bt_gatt_db_init(gatt_database, gatt_database_len, NULL);
-    printf("GATT database initialization status: %s \n",
-           get_bt_gatt_status_name(gatt_status));
+    // printf(("GATT database initialization status: %s \n",
+        //    get_bt_gatt_status_name(gatt_status));
 
     /* Start Undirected LE Advertisements on device startup.
      * The corresponding parameters are contained in 'app_bt_cfg.c' */
@@ -373,7 +377,7 @@ void app_bt_application_init(void)
     /* Failed to start advertisement. Stop program execution */
     if (WICED_BT_SUCCESS != result)
     {
-        printf("Failed to start advertisement! \n");
+        // printf(("Failed to start advertisement! \n");
         CY_ASSERT(0);
     }
 }
@@ -398,12 +402,12 @@ void app_bt_adv_stop_handler(void)
         result =  wiced_bt_start_advertisements(BTM_BLE_ADVERT_UNDIRECTED_HIGH,
                                                 0,
                                                 NULL);
-        if(result != WICED_BT_SUCCESS)
-            printf("Advertisement start failed :%d\n", result);
+        // if(result != WICED_BT_SUCCESS)
+            // printf(("Advertisement start failed :%d\n", result);
     }
     else
     {
-        printf("Stop Advertisement\n");
+        // printf(("Stop Advertisement\n");
     }
     UNUSED_VARIABLE(result);
 }

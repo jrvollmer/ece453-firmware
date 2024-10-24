@@ -2,6 +2,7 @@
 /*******************************************************************************
  * File Name: app_bt_gatt_handler.c
  *
+ * Editor: James Vollmer (jrvollmer@wisc.edu) - Team 01
  * Description: This file contains the task that handles GATT events.
  *
  * Related Document: See README.md
@@ -196,7 +197,7 @@ app_bt_gatt_req_cb (wiced_bt_gatt_attribute_request_t *p_attr_req,
              break;
 
         case GATT_HANDLE_VALUE_NOTIF:
-                    printf("Notification send complete\n");
+                    // printf("Notification send complete\n");
              break;
 
         case GATT_REQ_READ_BY_TYPE:
@@ -210,14 +211,14 @@ app_bt_gatt_req_cb (wiced_bt_gatt_attribute_request_t *p_attr_req,
 
         case GATT_HANDLE_VALUE_CONF:
             {
-                printf("Indication Confirmation received \n");
+                // printf("Indication Confirmation received \n");
                 hello_sensor_state.flag_indication_sent = FALSE;
             }
              break;
 
         default:
-                printf("ERROR: Unhandled GATT Connection Request case: %d\n",
-                       p_attr_req->opcode);
+                // printf("ERROR: Unhandled GATT Connection Request case: %d\n",
+                    //    p_attr_req->opcode);
                 gatt_status = WICED_BT_GATT_ERROR;
                 break;
     }
@@ -289,8 +290,8 @@ app_bt_gatt_req_read_handler(uint16_t conn_id,
     }
     attr_len_to_copy = puAttribute->cur_len;
 
-    printf("read_handler: conn_id:%d Handle:%x offset:%d len:%d\n ",
-            conn_id, p_read_req->handle, p_read_req->offset, attr_len_to_copy);
+    // printf("read_handler: conn_id:%d Handle:%x offset:%d len:%d\n ",
+            // conn_id, p_read_req->handle, p_read_req->offset, attr_len_to_copy);
 
     if (p_read_req->offset >= puAttribute->cur_len)
     {
@@ -332,10 +333,10 @@ app_bt_gatt_req_write_handler(uint16_t conn_id,
     wiced_bt_gatt_status_t gatt_status = WICED_BT_GATT_INVALID_HANDLE;
    *p_error_handle = p_write_req->handle;
 
-    printf("write_handler: conn_id:%d Handle:0x%x offset:%d len:%d\n ",
-           conn_id, p_write_req->handle,
-           p_write_req->offset,
-           p_write_req->val_len );
+    // printf("write_handler: conn_id:%d Handle:0x%x offset:%d len:%d\n ",
+        //    conn_id, p_write_req->handle,
+        //    p_write_req->offset,
+        //    p_write_req->val_len );
 
 
     /* Attempt to perform the Write Request */
@@ -346,7 +347,7 @@ app_bt_gatt_req_write_handler(uint16_t conn_id,
 
     if(WICED_BT_GATT_SUCCESS != gatt_status)
     {
-        printf("WARNING: GATT set attr status 0x%x\n", gatt_status);
+        // printf("WARNING: GATT set attr status 0x%x\n", gatt_status);
     }
 
     return (gatt_status);
@@ -381,9 +382,11 @@ app_bt_gatt_req_read_by_type_handler(uint16_t conn_id,
     uint8_t pair_len = 0;
     int used_len = 0;
 
+    UNUSED_VARIABLE(last_handle);
+
     if (NULL == p_rsp)
     {
-        printf("No memory, len_requested: %d!!\n",len_requested);
+        // printf("No memory, len_requested: %d!!\n",len_requested);
         return WICED_BT_GATT_INSUF_RESOURCE;
     }
 
@@ -401,7 +404,7 @@ app_bt_gatt_req_read_by_type_handler(uint16_t conn_id,
 
         if ( NULL == (puAttribute = app_bt_find_by_handle(attr_handle)))
         {
-            printf("found type but no attribute for %d \n",last_handle);
+            // printf("found type but no attribute for %d \n",last_handle);
             app_bt_free_buffer(p_rsp);
             return WICED_BT_GATT_INVALID_HANDLE;
         }
@@ -425,10 +428,10 @@ app_bt_gatt_req_read_by_type_handler(uint16_t conn_id,
 
     if (0 == used_len)
     {
-        printf("attr not found  start_handle: 0x%04x"
-               "end_handle: 0x%04x  Type: 0x%04x\n", p_read_req->s_handle,
-                                                       p_read_req->e_handle,
-                                                       p_read_req->uuid.uu.uuid16);
+        // printf("attr not found  start_handle: 0x%04x"
+            //    "end_handle: 0x%04x  Type: 0x%04x\n", p_read_req->s_handle,
+            //                                            p_read_req->e_handle,
+            //                                            p_read_req->uuid.uu.uuid16);
         app_bt_free_buffer(p_rsp);
         return WICED_BT_GATT_INVALID_HANDLE;
     }
@@ -458,9 +461,9 @@ app_bt_gatt_req_read_by_type_handler(uint16_t conn_id,
 wiced_bt_gatt_status_t
 app_bt_gatt_connection_up( wiced_bt_gatt_connection_status_t *p_status )
 {
-    printf("Connected to peer device: ");
+    // printf("Connected to peer device: ");
     print_bd_address(p_status->bd_addr);
-    printf("Connection ID '%d' \n", p_status->conn_id);
+    // printf("Connection ID '%d' \n", p_status->conn_id);
 
     /* Update the connection handler.  Save address of the connected device. */
     hello_sensor_state.conn_id = p_status->conn_id;
@@ -495,11 +498,13 @@ wiced_bt_gatt_status_t
 app_bt_gatt_connection_down(wiced_bt_gatt_connection_status_t *p_status)
 {
     wiced_result_t result;
-    printf("Peer device disconnected: ");
+    // printf("Peer device disconnected: ");
     print_bd_address(p_status->bd_addr);
 
-    printf("conn_id:%d reason:%s\n", p_status->conn_id,
-           get_bt_gatt_disconn_reason_name(p_status->reason));
+    UNUSED_VARIABLE(result);
+
+    // printf("conn_id:%d reason:%s\n", p_status->conn_id,
+        //    get_bt_gatt_disconn_reason_name(p_status->reason));
 
     /* Resetting the device info */
     memset(hello_sensor_state.remote_addr, 0, BD_ADDR_LEN);
@@ -509,10 +514,10 @@ app_bt_gatt_connection_down(wiced_bt_gatt_connection_status_t *p_status)
     result = wiced_bt_start_advertisements(BTM_BLE_ADVERT_UNDIRECTED_HIGH,
                                            0,
                                            NULL);
-    if(result != WICED_BT_SUCCESS)
-    {
-        printf("Start advertisement failed: %d\n", result);
-    }
+    // if(result != WICED_BT_SUCCESS)
+    // {
+    //     // printf("Start advertisement failed: %d\n", result);
+    // }
     return WICED_BT_GATT_SUCCESS;
 }
 
@@ -599,10 +604,10 @@ wiced_bt_gatt_status_t app_bt_set_value(uint16_t attr_handle,
                     rslt = app_bt_update_cccd(peer_cccd_data[bondindex], bondindex);
                     if (CY_RSLT_SUCCESS != rslt)
                     {
-                        printf("Failed to update CCCD Value in Flash! \n");
+                        // printf("Failed to update CCCD Value in Flash! \n");
                     }
                     else{
-                        printf("CCCD value updated in Flash! \n");
+                        // printf("CCCD value updated in Flash! \n");
                     }
                     break;
 
@@ -614,7 +619,7 @@ wiced_bt_gatt_status_t app_bt_set_value(uint16_t attr_handle,
                     app_hello_sensor_blink[0] = p_attr[0];
                     if (app_hello_sensor_blink[0] != 0)
                     {
-                        printf("hello_sensor_write_handler:num blinks: %d\n", app_hello_sensor_blink[0]);
+                        // printf("hello_sensor_write_handler:num blinks: %d\n", app_hello_sensor_blink[0]);
                         /* Blink the LED only if the peer writes a single digit */
                         if(app_hello_sensor_blink[0] < 10)
                         {
@@ -623,10 +628,34 @@ wiced_bt_gatt_status_t app_bt_set_value(uint16_t attr_handle,
                     }
                     break;
 
+                case HDLC_RC_CONTROLLER_JOYSTICK_VALUE:
+                    if (len != MAX_LEN_RC_CONTROLLER_JOYSTICK)
+                    {
+                        return WICED_BT_GATT_INVALID_ATTR_LEN;
+                    }
+                    app_rc_controller_joystick[0] = p_attr[0];
+                    app_rc_controller_joystick[1] = p_attr[1];
+                    app_rc_controller_joystick[2] = p_attr[2];
+                    app_rc_controller_joystick[3] = p_attr[3];
+                    break;
+                    
+                /* By writing into Characteristic Client Configuration descriptor
+                 * peer can enable or disable notification or indication */
+                case HDLD_RC_CONTROLLER_ITEM_CLIENT_CHAR_CONFIG:
+                    if (len != 2)
+                    {
+                        return WICED_BT_GATT_INVALID_ATTR_LEN;
+                    }
+                    app_rc_controller_item_client_char_config[0] = p_attr[0];
+                    peer_cccd_data[bondindex] = p_attr[0] | (p_attr[1] << 8);
+                    rslt = app_bt_update_cccd(peer_cccd_data[bondindex], bondindex);
+                    UNUSED_VARIABLE(rslt);
+                    break;
+
                 case HDLD_GATT_SERVICE_CHANGED_CLIENT_CHAR_CONFIG:
                     gatt_status = WICED_BT_GATT_SUCCESS;
                     break;
-                    
+
                 default:
                     gatt_status = WICED_BT_GATT_INVALID_HANDLE;
                     break;
@@ -642,7 +671,7 @@ wiced_bt_gatt_status_t app_bt_set_value(uint16_t attr_handle,
     }
     if (!isHandleInTable)
     {
-        /* TODO: Add code to read value for handles not contained within
+        /* Add code to read value for handles not contained within
          * generated lookup table. This is a custom logic that depends on the
          * application, and is not used in the current application. If the value
          * for the current handle is successfully written in the below code
@@ -652,7 +681,7 @@ wiced_bt_gatt_status_t app_bt_set_value(uint16_t attr_handle,
             default:
                 /* The write operation was not performed for the
                  * indicated handle */
-                printf("Write Request to Invalid Handle: 0x%x\n", attr_handle);
+                // printf("Write Request to Invalid Handle: 0x%x\n", attr_handle);
                 gatt_status = WICED_BT_GATT_WRITE_NOT_PERMIT;
                 break;
         }
@@ -676,12 +705,22 @@ wiced_bt_gatt_status_t app_bt_set_value(uint16_t attr_handle,
 void app_bt_send_message(void)
 {
     wiced_bt_gatt_status_t status;
-    printf("hello_sensor_send_message: CCCD:%d\n", app_hello_sensor_notify_client_char_config[0]);
+    // printf("hello_sensor_send_message: CCCD:%d\n", app_hello_sensor_notify_client_char_config[0]);
+
+    UNUSED_VARIABLE(status);
 
     /* If client has not registered for indication or notification, no action */
-    if(0 == app_hello_sensor_notify_client_char_config[0])
+    if((0 == app_hello_sensor_notify_client_char_config[0]) && (0 == app_rc_controller_item_client_char_config[0]))
     {
         return;
+    }
+    else if(app_rc_controller_item_client_char_config[0] & GATT_CLIENT_CONFIG_NOTIFICATION)
+    {
+        status = wiced_bt_gatt_server_send_notification(hello_sensor_state.conn_id, // Reusing conneciton ID from hello sensor code
+                                                        HDLC_RC_CONTROLLER_ITEM_VALUE,
+                                                        app_rc_controller_item_len,
+                                                        app_rc_controller_item,
+                                                        NULL);
     }
     else if(app_hello_sensor_notify_client_char_config[0] & GATT_CLIENT_CONFIG_NOTIFICATION)
     {
@@ -690,7 +729,7 @@ void app_bt_send_message(void)
                                                         app_hello_sensor_notify_len,
                                                         app_hello_sensor_notify,
                                                         NULL);
-        printf("Notification Status: %d \n", status);
+        // printf("Notification Status: %d \n", status);
     }
     else if(!hello_sensor_state.flag_indication_sent)
     {
@@ -700,7 +739,7 @@ void app_bt_send_message(void)
                                                 app_hello_sensor_notify_len,
                                                 app_hello_sensor_notify,
                                                 NULL);
-        printf("Indication Status: %d \n", status);
+        // printf("Indication Status: %d \n", status);
     }
 }
 

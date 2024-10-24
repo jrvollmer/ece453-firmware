@@ -1,8 +1,11 @@
 /*****************************************************************************
 * File Name: main.c
+* Author: James Vollmer (jrvollmer@wisc.edu) - Team 01
 *
 * Description: This is the source code for the FreeRTOS
 *              LE Hello Sensor Example for ModusToolbox.
+*              This has been modified to enable a CLI
+*              for controlling BLE actions.
 *
 * Related Document: See README.md
 *
@@ -46,7 +49,6 @@
 #include "app_flash_common.h"
 #include "app_bt_bonding.h"
 #include "cybsp.h"
-#include "cy_retarget_io.h"
 #include "mtb_kvstore.h"
 #include <FreeRTOS.h>
 #include <task.h>
@@ -58,6 +60,8 @@
 #include "app_bt_gatt_handler.h"
 #include "app_hw_device.h"
 #include "app_bt_utils.h"
+#include "task_console.h"
+#include "task_ble.h"
 #ifdef ENABLE_BT_SPY_LOG
 #include "cybt_debug_uart.h"
 #endif
@@ -73,6 +77,7 @@
  *   @brief Entry point to the application. Set device configuration and start
  *   BT stack initialization.  The actual application initialization will happen
  *   when stack reports that BT device is ready.
+ *   This also initializes the CLI and associated BLE tasks.
  *
  *   @param: None
  *
@@ -82,6 +87,8 @@ int main()
 {
     cy_rslt_t cy_result;
     wiced_result_t wiced_result;
+
+    UNUSED_VARIABLE(wiced_result);
 
     /* Initialize the board support package */
     cy_result = cybsp_init();
@@ -94,38 +101,10 @@ int main()
     /* Enable global interrupts */
     __enable_irq();
 
-    #ifdef ENABLE_BT_SPY_LOG
-    {
-        cybt_debug_uart_config_t config = {
-            .uart_tx_pin = CYBSP_DEBUG_UART_TX,
-            .uart_rx_pin = CYBSP_DEBUG_UART_RX,
-            .uart_cts_pin = CYBSP_DEBUG_UART_CTS,
-            .uart_rts_pin = CYBSP_DEBUG_UART_RTS,
-            .baud_rate = DEBUG_UART_BAUDRATE,
-            .flow_control = TRUE};
-        cybt_debug_uart_init(&config, NULL);
-    }
-    #else
-    {
-        /* Initialize retarget-io to use the debug UART port */
-        cy_retarget_io_init(CYBSP_DEBUG_UART_TX,
-                            CYBSP_DEBUG_UART_RX,
-                            CY_RETARGET_IO_BAUDRATE);
-    }
-    #endif //ENABLE_BT_SPY_LOG
-
-    printf("******************** "
-           "BTSTACK FreeRTOS Example "
-           "************************\n");
-
-    printf("****************** "
-           "Hello Sensor Application Start "
-           "********************\n");
-
     /* Configure platform specific settings for the BT device */
     cybt_platform_config_init(&cybsp_bt_platform_cfg);
 
-    /*Initialize the block device used by kv-store for performing
+    /* Initialize the block device used by kv-store for performing
      * read/write operations to the flash*/
     app_kvstore_bd_config(&block_device);
 
@@ -133,16 +112,9 @@ int main()
     wiced_result = wiced_bt_stack_init(app_bt_management_callback,
                                        &wiced_bt_cfg_settings);
 
-    /* Check if stack initialization was successful */
-    if(WICED_BT_SUCCESS == wiced_result)
-    {
-        printf("Bluetooth Stack Initialization Successful \n");
-    }
-    else
-    {
-        printf("Bluetooth Stack Initialization failed!! \n");
-        CY_ASSERT(0);
-    }
+    // Initialize CLI and associated tasks
+    task_console_init();
+    task_ble_init();
 
     /* Start the FreeRTOS scheduler */
     vTaskStartScheduler();

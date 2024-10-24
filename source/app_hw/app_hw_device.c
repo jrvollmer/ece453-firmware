@@ -372,19 +372,19 @@ void button_task(void *arg)
             if((btn_press_duration > APP_BTN_PRESS_SHORT_MIN) &&
                (btn_press_duration <= APP_BTN_PRESS_SHORT_MAX))
             {
-                printf("Short button press is detected \n");
+                // printf("Short button press is detected \n");
                 /* Turn off the LED since it is a short button press */
                 cyhal_gpio_write(CYBSP_USER_LED2 , CYBSP_LED_STATE_OFF);
                 /* If connection is down, start high duty advertisements,
                  * so client can connect */
                 if (0 == hello_sensor_state.conn_id)
                 {
-                    printf("Starting Undirected High Advertisement\n");
+                    // printf("Starting Undirected High Advertisement\n");
                     result = wiced_bt_start_advertisements(BTM_BLE_ADVERT_UNDIRECTED_HIGH,
                                                            0,
                                                            NULL);
-                    if (result != WICED_BT_SUCCESS)
-                        printf("Start advertisement failed: %d\n", result);
+                    // if (result != WICED_BT_SUCCESS)
+                        // printf("Start advertisement failed: %d\n", result);
 
                     UNUSED_VARIABLE(result);
                 }
@@ -401,10 +401,10 @@ void button_task(void *arg)
                      * or notification. After we send an indication wait for the
                      * ack before we can send anything else */
 
-                    printf("No. to write: %d\n",
-                           hello_sensor_state.num_to_send);
-                    printf("flag_indication_sent: %d \n",
-                           hello_sensor_state.flag_indication_sent);
+                    // printf("No. to write: %d\n",
+                        //    hello_sensor_state.num_to_send);
+                    // printf("flag_indication_sent: %d \n",
+                        //    hello_sensor_state.flag_indication_sent);
                     while ((0 != hello_sensor_state.num_to_send) &&
                            (FALSE == hello_sensor_state.flag_indication_sent))
                     {
@@ -417,7 +417,7 @@ void button_task(void *arg)
                and bond to a new peer device */
             else if((btn_press_duration > APP_BTN_PRESS_5S) && (btn_press_duration < APP_BTN_PRESS_10S))
             {
-                printf("Entering Pairing Mode: Connect, Pair and Bond with a new peer device...\n");
+                // printf("Entering Pairing Mode: Connect, Pair and Bond with a new peer device...\n");
 #ifdef PSOC6_BLE
                 pairing_mode = TRUE;
                 result = wiced_bt_start_advertisements(BTM_BLE_ADVERT_OFF,
@@ -426,19 +426,19 @@ void button_task(void *arg)
                 result = wiced_bt_ble_address_resolution_list_clear_and_disable();
                 if(WICED_BT_SUCCESS == result)
                 {
-                    printf("Address resolution list cleared successfully \n");
+                    // printf("Address resolution list cleared successfully \n");
                 }
                 else
                 {
-                    printf("Failed to clear address resolution list \n");
+                    // printf("Failed to clear address resolution list \n");
                 }
 #endif
-                printf("Starting Undirected High Advertisement\n");
+                // printf("Starting Undirected High Advertisement\n");
                 result = wiced_bt_start_advertisements(BTM_BLE_ADVERT_UNDIRECTED_HIGH,
                                                         0,
                                                         NULL);
-                if (result != WICED_BT_SUCCESS)
-                    printf("Start advertisement failed: %d\n", result);
+                // if (result != WICED_BT_SUCCESS)
+                    // printf("Start advertisement failed: %d\n", result);
 
                 UNUSED_VARIABLE(result);
 
@@ -453,20 +453,20 @@ void button_task(void *arg)
             /* Check of button is press for 10 seconds and delete the bond info from NVRAM */
             else if(btn_press_duration > APP_BTN_PRESS_10S)
             {
-                printf("Button pressed more than 10 seconds,"
-                       "attempting to clear bond info\n");
+                // printf("Button pressed more than 10 seconds,"
+                    //    "attempting to clear bond info\n");
                 if (0 == hello_sensor_state.conn_id)
                 {
                     /* Reset Kv-store library, this will clear the flash */
                     rslt = mtb_kvstore_reset(&kvstore_obj);
                     if(CY_RSLT_SUCCESS == rslt)
                     {
-                        printf("Successfully reset kv-store library,"
-                               "Please reset the device to generate new keys!\n");
+                        // printf("Successfully reset kv-store library,"
+                            //    "Please reset the device to generate new keys!\n");
                     }
                     else
                     {
-                        printf("failed to reset kv-store libray\n");
+                        // printf("failed to reset kv-store libray\n");
                     }
                     /* Clear peer link keys and identity keys structure */
                     memset(&bond_info, 0, sizeof(bond_info));
@@ -474,8 +474,8 @@ void button_task(void *arg)
                 }
                 else
                 {
-                    printf("Existing connection present, "
-                           "Can't reset bonding information\n");
+                    // printf("Existing connection present, "
+                        //    "Can't reset bonding information\n");
                 }
             }
             /* Stop the ms_timer_btn, start it again when button interrupt is detected */
