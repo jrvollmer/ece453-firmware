@@ -38,9 +38,9 @@
                                         <Field>
                                             <FieldProperties>
                                                 <Property id="Name" value="Name"/>
-                                                <Property id="Value" value="Hello"/>
+                                                <Property id="Value" value="Default"/>
                                                 <Property id="Format" value="f_utf8s"/>
-                                                <Property id="ByteLength" value="5"/>
+                                                <Property id="ByteLength" value="7"/>
                                             </FieldProperties>
                                         </Field>
                                     </Fields>
@@ -569,7 +569,7 @@
         <General>
             <Property id="DeviceAddress" value="00A050-000000"/>
             <Property id="MacGeneratedAddress" value="false"/>
-            <Property id="DeviceName" value="Hello"/>
+            <Property id="DeviceName" value="Default"/>
             <Property id="Appearance" value="0"/>
             <Property id="HostTxPowerLevel" value="Pos_0"/>
             <Property id="EnableRpaTimeout" value="true"/>
@@ -606,8 +606,6 @@
                     <Property id="DiscoveryMode" value="General"/>
                     <Property id="AdLocalName" value="true"/>
                     <Property id="LocalNameType" value="Complete"/>
-                    <Property id="AdServiceUuid" value="true"/>
-                    <Property id="ServiceUuid" value="{96688bfc-97b4-4dc4-98cd-20a275c95605}"/>
                 </AdvertisementPacket>
             </PeripheralConfiguration>
         </PeripheralConfigurations>
