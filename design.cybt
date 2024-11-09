@@ -606,6 +606,8 @@
                     <Property id="DiscoveryMode" value="General"/>
                     <Property id="AdLocalName" value="true"/>
                     <Property id="LocalNameType" value="Complete"/>
+                    <Property id="AdServiceUuid" value="true"/>
+                    <Property id="ServiceUuid" value="{a5f3ca8b-4044-41b4-94cc-297cb75396ee}"/>
                 </AdvertisementPacket>
             </PeripheralConfiguration>
         </PeripheralConfigurations>
