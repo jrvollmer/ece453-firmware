@@ -40,6 +40,7 @@
 #include "app_bt_event_handler.h"
 #include "app_bt_gatt_handler.h"
 #include "app_hw_device.h"
+#include "app_bt_helpers.h"
 #include "cycfg_gatt_db.h"
 
 

@@ -180,13 +180,13 @@ static void task_ble(void *param)
         }
         else if (ble_packet.action == BLE_ACTION_NOTIFY)
         {
-            app_rc_controller_item[0] = ble_packet.data;
+            app_rc_controller_get_item[0] = ble_packet.data;
 
             // Send if client is registered to receive notifications
             app_bt_send_message();
 
             // Tell user if notification was sent or not
-            if(app_rc_controller_item_client_char_config[0] & GATT_CLIENT_CONFIG_NOTIFICATION)
+            if(app_rc_controller_get_item_client_char_config[0] & GATT_CLIENT_CONFIG_NOTIFICATION)
             {
                 task_print_info("Sent item value 0x%0x to client '%d'", ble_packet.data, hello_sensor_state.conn_id);
             }
@@ -203,11 +203,24 @@ static void task_ble(void *param)
         {
             float32_t joystick_val;
             uint32_t joystick_hex;
+            uint8_t use_item_val;
 
-            // Get the joystick value from the client (hex is for demo purposes)
-            memcpy(&joystick_val, &app_rc_controller_joystick, app_rc_controller_joystick_len);
-            memcpy(&joystick_hex, &app_rc_controller_joystick, app_rc_controller_joystick_len);
-            task_print_info("Joystick value is %f (0x%0x)", joystick_val, joystick_hex);
+            // Get the joystick x and y values from the client (hex is for demo purposes)
+            memcpy(&joystick_val, &app_rc_controller_joystick_y, app_rc_controller_joystick_y_len);
+            memcpy(&joystick_hex, &app_rc_controller_joystick_y, app_rc_controller_joystick_y_len);
+            task_print_info("Joystick Y value is %f (0x%0x)", joystick_val, joystick_hex);
+            memcpy(&joystick_val, &app_rc_controller_joystick_x, app_rc_controller_joystick_x_len);
+            memcpy(&joystick_hex, &app_rc_controller_joystick_x, app_rc_controller_joystick_x_len);
+            task_print_info("Joystick X value is %f (0x%0x)", joystick_val, joystick_hex);
+            use_item_val = get_use_item();
+            // memcpy(&use_item_val, &app_rc_controller_use_item, app_rc_controller_use_item_len);
+            task_print_info("Use Item value is %u", use_item_val);
+            // // Reset use_item value if set
+            // if (use_item_val)
+            // {
+            //     const uint8_t zero = 0;
+            //     memcpy(&app_rc_controller_use_item, &zero, app_rc_controller_use_item_len);
+            // }
 
             // Send packet back once done
             xQueueSend(ble_packet.return_queue, &ble_packet, portMAX_DELAY);

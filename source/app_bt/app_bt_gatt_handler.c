@@ -628,25 +628,57 @@ wiced_bt_gatt_status_t app_bt_set_value(uint16_t attr_handle,
                     }
                     break;
 
-                case HDLC_RC_CONTROLLER_JOYSTICK_VALUE:
-                    if (len != MAX_LEN_RC_CONTROLLER_JOYSTICK)
+                case HDLC_RC_CONTROLLER_JOYSTICK_X_VALUE:
+                    if (len != MAX_LEN_RC_CONTROLLER_JOYSTICK_X)
                     {
                         return WICED_BT_GATT_INVALID_ATTR_LEN;
                     }
-                    app_rc_controller_joystick[0] = p_attr[0];
-                    app_rc_controller_joystick[1] = p_attr[1];
-                    app_rc_controller_joystick[2] = p_attr[2];
-                    app_rc_controller_joystick[3] = p_attr[3];
+                    app_rc_controller_joystick_x[0] = p_attr[0];
+                    app_rc_controller_joystick_x[1] = p_attr[1];
+                    app_rc_controller_joystick_x[2] = p_attr[2];
+                    app_rc_controller_joystick_x[3] = p_attr[3];
                     break;
-                    
+
+                case HDLC_RC_CONTROLLER_JOYSTICK_Y_VALUE:
+                    if (len != MAX_LEN_RC_CONTROLLER_JOYSTICK_Y)
+                    {
+                        return WICED_BT_GATT_INVALID_ATTR_LEN;
+                    }
+                    app_rc_controller_joystick_y[0] = p_attr[0];
+                    app_rc_controller_joystick_y[1] = p_attr[1];
+                    app_rc_controller_joystick_y[2] = p_attr[2];
+                    app_rc_controller_joystick_y[3] = p_attr[3];
+                    break;
+
+                case HDLC_RC_CONTROLLER_USE_ITEM_VALUE:
+                    if (len != MAX_LEN_RC_CONTROLLER_USE_ITEM)
+                    {
+                        return WICED_BT_GATT_INVALID_ATTR_LEN;
+                    }
+                    app_rc_controller_use_item[0] = p_attr[0];
+                    break;
+
                 /* By writing into Characteristic Client Configuration descriptor
                  * peer can enable or disable notification or indication */
-                case HDLD_RC_CONTROLLER_ITEM_CLIENT_CHAR_CONFIG:
+                case HDLD_RC_CONTROLLER_GET_ITEM_CLIENT_CHAR_CONFIG:
                     if (len != 2)
                     {
                         return WICED_BT_GATT_INVALID_ATTR_LEN;
                     }
-                    app_rc_controller_item_client_char_config[0] = p_attr[0];
+                    app_rc_controller_get_item_client_char_config[0] = p_attr[0];
+                    peer_cccd_data[bondindex] = p_attr[0] | (p_attr[1] << 8);
+                    rslt = app_bt_update_cccd(peer_cccd_data[bondindex], bondindex);
+                    UNUSED_VARIABLE(rslt);
+                    break;
+
+                /* By writing into Characteristic Client Configuration descriptor
+                 * peer can enable or disable notification or indication */
+                case HDLD_RC_CONTROLLER_LAP_CLIENT_CHAR_CONFIG:
+                    if (len != 2)
+                    {
+                        return WICED_BT_GATT_INVALID_ATTR_LEN;
+                    }
+                    app_rc_controller_lap_client_char_config[0] = p_attr[0];
                     peer_cccd_data[bondindex] = p_attr[0] | (p_attr[1] << 8);
                     rslt = app_bt_update_cccd(peer_cccd_data[bondindex], bondindex);
                     UNUSED_VARIABLE(rslt);
@@ -710,16 +742,26 @@ void app_bt_send_message(void)
     UNUSED_VARIABLE(status);
 
     /* If client has not registered for indication or notification, no action */
-    if((0 == app_hello_sensor_notify_client_char_config[0]) && (0 == app_rc_controller_item_client_char_config[0]))
+    if((0 == app_hello_sensor_notify_client_char_config[0]) &&
+       (0 == app_rc_controller_get_item_client_char_config[0]) &&
+       (0 == app_rc_controller_lap_client_char_config[0]))
     {
         return;
     }
-    else if(app_rc_controller_item_client_char_config[0] & GATT_CLIENT_CONFIG_NOTIFICATION)
+    else if(app_rc_controller_get_item_client_char_config[0] & GATT_CLIENT_CONFIG_NOTIFICATION)
     {
         status = wiced_bt_gatt_server_send_notification(hello_sensor_state.conn_id, // Reusing conneciton ID from hello sensor code
-                                                        HDLC_RC_CONTROLLER_ITEM_VALUE,
-                                                        app_rc_controller_item_len,
-                                                        app_rc_controller_item,
+                                                        HDLC_RC_CONTROLLER_GET_ITEM_VALUE,
+                                                        app_rc_controller_get_item_len,
+                                                        app_rc_controller_get_item,
+                                                        NULL);
+    }
+    else if(app_rc_controller_lap_client_char_config[0] & GATT_CLIENT_CONFIG_NOTIFICATION)
+    {
+        status = wiced_bt_gatt_server_send_notification(hello_sensor_state.conn_id, // Reusing conneciton ID from hello sensor code
+                                                        HDLC_RC_CONTROLLER_LAP_VALUE,
+                                                        app_rc_controller_lap_len,
+                                                        app_rc_controller_lap,
                                                         NULL);
     }
     else if(app_hello_sensor_notify_client_char_config[0] & GATT_CLIENT_CONFIG_NOTIFICATION)
