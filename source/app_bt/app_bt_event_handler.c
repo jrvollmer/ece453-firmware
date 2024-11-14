@@ -249,7 +249,8 @@ app_bt_management_callback(wiced_bt_management_evt_t event, wiced_bt_management_
                 app_bt_restore_bond_data();
                 app_bt_restore_cccd();
                 /* Set CCCD value from the value that was previously saved in the NVRAM */
-                app_hello_sensor_notify_client_char_config[0] = peer_cccd_data[bondindex];
+                app_rc_controller_get_item_client_char_config[0] = peer_cccd_data[bondindex];
+                app_rc_controller_lap_client_char_config[0] = peer_cccd_data[bondindex];
                 // printf(("Bond info present in Flash for device: ");
                 print_bd_address(p_event_data->encryption_status.bd_addr);
             }

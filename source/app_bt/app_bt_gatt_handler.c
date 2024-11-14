@@ -592,41 +592,6 @@ wiced_bt_gatt_status_t app_bt_set_value(uint16_t attr_handle,
 
                 switch (attr_handle)
                 {
-               /* By writing into Characteristic Client Configuration descriptor
-                *  peer can enable or disable notification or indication */
-                case HDLD_HELLO_SENSOR_NOTIFY_CLIENT_CHAR_CONFIG:
-                    if (len != 2)
-                    {
-                        return WICED_BT_GATT_INVALID_ATTR_LEN;
-                    }
-                    app_hello_sensor_notify_client_char_config[0] = p_attr[0];
-                    peer_cccd_data[bondindex] = p_attr[0] | (p_attr[1] << 8);
-                    rslt = app_bt_update_cccd(peer_cccd_data[bondindex], bondindex);
-                    if (CY_RSLT_SUCCESS != rslt)
-                    {
-                        // printf("Failed to update CCCD Value in Flash! \n");
-                    }
-                    else{
-                        // printf("CCCD value updated in Flash! \n");
-                    }
-                    break;
-
-                case HDLC_HELLO_SENSOR_BLINK_VALUE:
-                    if (len != 1)
-                    {
-                        return WICED_BT_GATT_INVALID_ATTR_LEN;
-                    }
-                    app_hello_sensor_blink[0] = p_attr[0];
-                    if (app_hello_sensor_blink[0] != 0)
-                    {
-                        // printf("hello_sensor_write_handler:num blinks: %d\n", app_hello_sensor_blink[0]);
-                        /* Blink the LED only if the peer writes a single digit */
-                        if(app_hello_sensor_blink[0] < 10)
-                        {
-                            app_bt_led_blink(app_hello_sensor_blink[0]);
-                        }
-                    }
-                    break;
 
                 case HDLC_RC_CONTROLLER_JOYSTICK_X_VALUE:
                     if (len != MAX_LEN_RC_CONTROLLER_JOYSTICK_X)
@@ -741,14 +706,7 @@ void app_bt_send_message(void)
 
     UNUSED_VARIABLE(status);
 
-    /* If client has not registered for indication or notification, no action */
-    if((0 == app_hello_sensor_notify_client_char_config[0]) &&
-       (0 == app_rc_controller_get_item_client_char_config[0]) &&
-       (0 == app_rc_controller_lap_client_char_config[0]))
-    {
-        return;
-    }
-    else if(app_rc_controller_get_item_client_char_config[0] & GATT_CLIENT_CONFIG_NOTIFICATION)
+    if(app_rc_controller_get_item_client_char_config[0] & GATT_CLIENT_CONFIG_NOTIFICATION)
     {
         status = wiced_bt_gatt_server_send_notification(hello_sensor_state.conn_id, // Reusing conneciton ID from hello sensor code
                                                         HDLC_RC_CONTROLLER_GET_ITEM_VALUE,
@@ -763,25 +721,6 @@ void app_bt_send_message(void)
                                                         app_rc_controller_lap_len,
                                                         app_rc_controller_lap,
                                                         NULL);
-    }
-    else if(app_hello_sensor_notify_client_char_config[0] & GATT_CLIENT_CONFIG_NOTIFICATION)
-    {
-        status = wiced_bt_gatt_server_send_notification(hello_sensor_state.conn_id,
-                                                        HDLC_HELLO_SENSOR_NOTIFY_VALUE,
-                                                        app_hello_sensor_notify_len,
-                                                        app_hello_sensor_notify,
-                                                        NULL);
-        // printf("Notification Status: %d \n", status);
-    }
-    else if(!hello_sensor_state.flag_indication_sent)
-    {
-        hello_sensor_state.flag_indication_sent = TRUE;
-        status = wiced_bt_gatt_server_send_indication(hello_sensor_state.conn_id,
-                                                HDLC_HELLO_SENSOR_NOTIFY_VALUE,
-                                                app_hello_sensor_notify_len,
-                                                app_hello_sensor_notify,
-                                                NULL);
-        // printf("Indication Status: %d \n", status);
     }
 }
 
@@ -829,19 +768,4 @@ void* app_bt_alloc_buffer(int len)
  *
  */
 void app_bt_gatt_increment_notify_value(void)
-{
-    if(0 == app_hello_sensor_notify_client_char_config[0])
-    {
-        return;
-    }
-    /* Getting the last byte */
-    int last_byte = app_hello_sensor_notify_len - 1 ;
-    char c = app_hello_sensor_notify[last_byte];
-
-    c++;
-    if ((c < '0') || (c > '9'))
-    {
-        c = '0';
-    }
-    app_hello_sensor_notify[last_byte] = c;
-}
+{}
