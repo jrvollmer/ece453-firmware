@@ -40,7 +40,7 @@
 #include "app_bt_event_handler.h"
 #include "app_bt_gatt_handler.h"
 #include "app_hw_device.h"
-#include "app_bt_helpers.h"
+#include "app_bt_car.h"
 #include "cycfg_gatt_db.h"
 
 
@@ -65,7 +65,8 @@ typedef enum
     BLE_ACTION_UNPAIR        = 1,
     BLE_ACTION_CHECK_CONN    = 2,
     BLE_ACTION_NOTIFY        = 3,
-    BLE_ACTION_READ_JOYSTICK = 4
+    BLE_ACTION_READ_JOYSTICK = 4,
+    BLE_ACTION_GET_ITEM      = 5
 } ble_action_t;
 
 // BLE information
@@ -75,11 +76,11 @@ typedef struct
     ble_action_t action;
     uint8_t data;
     QueueHandle_t return_queue;
-} ble_packet_t;
+} ble_cli_packet_t;
 
 
-extern QueueHandle_t q_ble_req;
-extern QueueHandle_t q_ble_resp;
+extern QueueHandle_t q_ble_cli_req;
+extern QueueHandle_t q_ble_cli_resp;
 void task_ble_init(void);
 
 #endif // __TASK_BLE_H__

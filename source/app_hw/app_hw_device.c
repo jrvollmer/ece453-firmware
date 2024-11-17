@@ -56,6 +56,10 @@
 #include "app_bt_event_handler.h"
 #include "app_bt_gatt_handler.h"
 #include "app_hw_device.h"
+#include "app_audio.h"
+#include "app_ir_led.h"
+#include "task_audio.h"
+#include "task_ir_led.h"
 #ifdef ENABLE_BT_SPY_LOG
 #include "cybt_debug_uart.h"
 #endif
@@ -290,7 +294,7 @@ void app_bt_gpio_interrupt_handler(void *handler_arg, cyhal_gpio_event_t event)
  * Function Name: app_bt_hw_init
  *
  * Function Description:
- *   @brief This function initializes the LEDs and FreeRTOS Timers.
+ *   @brief This function initializes all hardware resources that interface with BLE.
  *
  *   @param None
  *
@@ -300,6 +304,7 @@ void app_bt_gpio_interrupt_handler(void *handler_arg, cyhal_gpio_event_t event)
 
 void app_bt_hw_init()
 {
+    // TODO The button actions are helpful, but remove any unnecessary tasks related to the original hello sensor service
     cyhal_gpio_init(CYBSP_USER_LED1 , CYHAL_GPIO_DIR_OUTPUT,
                     CYHAL_GPIO_DRIVE_STRONG, CYBSP_LED_STATE_OFF);
     cyhal_gpio_init(CYBSP_USER_LED2 , CYHAL_GPIO_DIR_OUTPUT,
@@ -334,6 +339,14 @@ void app_bt_hw_init()
                 NULL,
                 BTN_TASK_PRIORITY,
                 &button_handle);
+
+    // Initialize hardware resources for the car
+    app_audio_init();
+    app_ir_led_init();
+
+    // Initailize all tasks for the car
+    task_audio_init();
+    task_ir_led_init();
 }
 
 /**

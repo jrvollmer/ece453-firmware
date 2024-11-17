@@ -52,6 +52,8 @@
 #include "mtb_kvstore.h"
 #include <FreeRTOS.h>
 #include <task.h>
+#include <time.h>
+#include <stdlib.h>
 #include "cycfg_bt_settings.h"
 #include "wiced_bt_stack.h"
 #include "cybsp_bt_config.h"
@@ -90,6 +92,9 @@ int main()
 
     UNUSED_VARIABLE(wiced_result);
 
+    // Initialize random seed. Do not call this anywhere else
+    srand(time(NULL));
+
     /* Initialize the board support package */
     cy_result = cybsp_init();
 
@@ -100,6 +105,8 @@ int main()
 
     /* Enable global interrupts */
     __enable_irq();
+
+    task_console_init();
 
     /* Configure platform specific settings for the BT device */
     cybt_platform_config_init(&cybsp_bt_platform_cfg);
@@ -112,8 +119,7 @@ int main()
     wiced_result = wiced_bt_stack_init(app_bt_management_callback,
                                        &wiced_bt_cfg_settings);
 
-    // Initialize CLI and associated tasks
-    task_console_init();
+    /* Initialize CLI for BLE */
     task_ble_init();
 
     /* Start the FreeRTOS scheduler */

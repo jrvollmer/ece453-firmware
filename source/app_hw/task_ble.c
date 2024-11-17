@@ -15,7 +15,7 @@
 /******************************************************************************
  * Private Function Declarations                                              *
  ******************************************************************************/
-static void task_ble(void *param);
+static void task_ble_cli(void *param);
 
 static BaseType_t cli_handler_ble_pair(
     char *pcWriteBuffer,
@@ -37,14 +37,19 @@ static BaseType_t cli_handler_ble_read_joystick(
     size_t xWriteBufferLen,
     const char *pcCommandString
 );
+static BaseType_t cli_handler_ble_get_item(
+    char *pcWriteBuffer,
+    size_t xWriteBufferLen,
+    const char *pcCommandString
+);
 
 
 /******************************************************************************
  * Global Variables                                                           *
  ******************************************************************************/
 // Queues used to send and receive info for commands used to control the BLE interface
-QueueHandle_t q_ble_req;
-QueueHandle_t q_ble_resp;
+QueueHandle_t q_ble_cli_req;
+QueueHandle_t q_ble_cli_resp;
 
 // The CLI command definition for the BLE pair command
 static const CLI_Command_Definition_t xBlePair =
@@ -82,20 +87,29 @@ static const CLI_Command_Definition_t xBleReadJoystick =
     0                                 // The user can enter 0 parameters
 };
 
+// The CLI command definition for a BLE notify (get item) command
+static const CLI_Command_Definition_t xBleGetItem =
+{
+    "get_item",                  // Command text
+    "\r\nget_item\r\n",          // Command help text
+    cli_handler_ble_get_item,    // The function to run
+    0                            // The user can enter 0 parameters
+};
+
 
 /******************************************************************************
  * Static Function Definitions                                                *
  ******************************************************************************/
 /**
- * @brief  This task receives commands from the BLE message queue to execute
- *         BLE actions
+ * @brief  This task receives commands from the BLE CLI message queue
+ *         to execute BLE actions
  * 
  * @param param
  * Unused
  */
-static void task_ble(void *param)
+static void task_ble_cli(void *param)
 {
-    ble_packet_t ble_packet;
+    ble_cli_packet_t ble_packet;
 
     // Suppress warning for unused parameter
     (void)param;
@@ -104,7 +118,7 @@ static void task_ble(void *param)
     for (;;)
     {
         // Check the Queue. If nothing was in the queue, we should return pdFALSE
-        xQueueReceive(q_ble_req, &ble_packet, portMAX_DELAY);
+        xQueueReceive(q_ble_cli_req, &ble_packet, portMAX_DELAY);
 
         if (ble_packet.action == BLE_ACTION_PAIR)
         {
@@ -201,26 +215,43 @@ static void task_ble(void *param)
         }
         else if (ble_packet.action == BLE_ACTION_READ_JOYSTICK)
         {
-            float32_t joystick_val;
+            car_joystick_t joystick_val;
             uint32_t joystick_hex;
-            uint8_t use_item_val;
+            car_item_t use_item_val;
+            const car_item_t zero = 0;
 
             // Get the joystick x and y values from the client (hex is for demo purposes)
-            memcpy(&joystick_val, &app_rc_controller_joystick_y, app_rc_controller_joystick_y_len);
-            memcpy(&joystick_hex, &app_rc_controller_joystick_y, app_rc_controller_joystick_y_len);
+            xQueueReceive(q_ble_car_joystick_y, &joystick_val, 0);
+            memcpy(&joystick_hex, &joystick_val, sizeof(car_joystick_t));
+            // TODO REMOVE
+            // memcpy(&joystick_val, &app_rc_controller_joystick_y, app_rc_controller_joystick_y_len);
+            // memcpy(&joystick_hex, &app_rc_controller_joystick_y, app_rc_controller_joystick_y_len);
             task_print_info("Joystick Y value is %f (0x%0x)", joystick_val, joystick_hex);
-            memcpy(&joystick_val, &app_rc_controller_joystick_x, app_rc_controller_joystick_x_len);
-            memcpy(&joystick_hex, &app_rc_controller_joystick_x, app_rc_controller_joystick_x_len);
+            xQueueReceive(q_ble_car_joystick_x, &joystick_val, 0);
+            memcpy(&joystick_hex, &joystick_val, sizeof(car_joystick_t));
+            // TODO REMOVE
+            // memcpy(&joystick_val, &app_rc_controller_joystick_x, app_rc_controller_joystick_x_len);
+            // memcpy(&joystick_hex, &app_rc_controller_joystick_x, app_rc_controller_joystick_x_len);
             task_print_info("Joystick X value is %f (0x%0x)", joystick_val, joystick_hex);
-            use_item_val = get_use_item();
-            // memcpy(&use_item_val, &app_rc_controller_use_item, app_rc_controller_use_item_len);
+
+            // Get and reset use item value
+            memcpy(&use_item_val, &app_rc_controller_use_item, app_rc_controller_use_item_len);
             task_print_info("Use Item value is %u", use_item_val);
-            // // Reset use_item value if set
-            // if (use_item_val)
-            // {
-            //     const uint8_t zero = 0;
-            //     memcpy(&app_rc_controller_use_item, &zero, app_rc_controller_use_item_len);
-            // }
+            memcpy(&app_rc_controller_use_item, &zero, app_rc_controller_use_item_len);
+
+            // Send packet back once done
+            xQueueSend(ble_packet.return_queue, &ble_packet, portMAX_DELAY);
+        }
+        else if (ble_packet.action == BLE_ACTION_GET_ITEM)
+        {
+            if (app_bt_car_get_new_item() == pdTRUE)
+            {
+                task_print_info("Sent new item to RC controller app");
+            }
+            else
+            {
+                task_print_info("Did not get new item");
+            }
 
             // Send packet back once done
             xQueueSend(ble_packet.return_queue, &ble_packet, portMAX_DELAY);
@@ -247,7 +278,7 @@ static BaseType_t cli_handler_ble_pair(
     const char *pcCommandString
 )
 {
-    ble_packet_t ble_packet;
+    ble_cli_packet_t ble_packet;
     BaseType_t xParameterStringLength;
     const char *pcParameter;
 
@@ -292,11 +323,11 @@ static BaseType_t cli_handler_ble_pair(
     }
 
     // Send the message to the BLE task
-    ble_packet.return_queue = q_ble_resp;
-    xQueueSendToBack(q_ble_req, &ble_packet, portMAX_DELAY);
+    ble_packet.return_queue = q_ble_cli_resp;
+    xQueueSendToBack(q_ble_cli_req, &ble_packet, portMAX_DELAY);
 
     // Wait for pairing to complete
-    xQueueReceive(q_ble_resp, &ble_packet, portMAX_DELAY);
+    xQueueReceive(q_ble_cli_resp, &ble_packet, portMAX_DELAY);
 
     // Nothing to return, so zero out the pcWriteBuffer
     memset(pcWriteBuffer, 0, xWriteBufferLen);
@@ -322,7 +353,7 @@ static BaseType_t cli_handler_ble_check_connection(
     const char *pcCommandString
 )
 {
-    ble_packet_t ble_packet;
+    ble_cli_packet_t ble_packet;
 
     ble_packet.action = BLE_ACTION_CHECK_CONN;
 
@@ -335,11 +366,11 @@ static BaseType_t cli_handler_ble_check_connection(
     configASSERT(pcWriteBuffer);
 
     // Send the message to the BLE task
-    ble_packet.return_queue = q_ble_resp;
-    xQueueSendToBack(q_ble_req, &ble_packet, portMAX_DELAY);
+    ble_packet.return_queue = q_ble_cli_resp;
+    xQueueSendToBack(q_ble_cli_req, &ble_packet, portMAX_DELAY);
 
     // Wait for connection to complete
-    xQueueReceive(q_ble_resp, &ble_packet, portMAX_DELAY);
+    xQueueReceive(q_ble_cli_resp, &ble_packet, portMAX_DELAY);
 
     // Nothing to return, so zero out the pcWriteBuffer
     memset(pcWriteBuffer, 0, xWriteBufferLen);
@@ -366,7 +397,7 @@ static BaseType_t cli_handler_ble_notify(
 )
 {
     const char *pcParameter;
-    ble_packet_t ble_packet;
+    ble_cli_packet_t ble_packet;
     BaseType_t xParameterStringLength;
     BaseType_t xReturn = pdFALSE;
 	char *end_ptr;
@@ -406,11 +437,11 @@ static BaseType_t cli_handler_ble_notify(
 	}
 
     // Send the message to the BLE task
-    ble_packet.return_queue = q_ble_resp;
-    xQueueSendToBack(q_ble_req, &ble_packet, portMAX_DELAY);
+    ble_packet.return_queue = q_ble_cli_resp;
+    xQueueSendToBack(q_ble_cli_req, &ble_packet, portMAX_DELAY);
 
     // Wait for send to complete
-    xQueueReceive(q_ble_resp, &ble_packet, portMAX_DELAY);
+    xQueueReceive(q_ble_cli_resp, &ble_packet, portMAX_DELAY);
 
     // Nothing to return, so zero out the pcWriteBuffer
     memset(pcWriteBuffer, 0, xWriteBufferLen);
@@ -438,7 +469,7 @@ static BaseType_t cli_handler_ble_read_joystick(
     const char *pcCommandString
 )
 {
-    ble_packet_t ble_packet;
+    ble_cli_packet_t ble_packet;
     BaseType_t xReturn = pdFALSE;
 
     ble_packet.action = BLE_ACTION_READ_JOYSTICK;
@@ -452,11 +483,11 @@ static BaseType_t cli_handler_ble_read_joystick(
     configASSERT(pcWriteBuffer);
 
     // Send the message to the BLE task
-    ble_packet.return_queue = q_ble_resp;
-    xQueueSendToBack(q_ble_req, &ble_packet, portMAX_DELAY);
+    ble_packet.return_queue = q_ble_cli_resp;
+    xQueueSendToBack(q_ble_cli_req, &ble_packet, portMAX_DELAY);
 
     // Wait for send to complete
-    xQueueReceive(q_ble_resp, &ble_packet, portMAX_DELAY);
+    xQueueReceive(q_ble_cli_resp, &ble_packet, portMAX_DELAY);
 
     // Nothing to return, so zero out the pcWriteBuffer
     memset(pcWriteBuffer, 0, xWriteBufferLen);
@@ -464,26 +495,69 @@ static BaseType_t cli_handler_ble_read_joystick(
     return xReturn;
 }
 
+/**
+ * @brief  FreeRTOS CLI Handler for the 'get_item' command
+ * 
+ * @param pcWriteBuffer
+ * Array used to return a string to the CLI parser
+ * @param xWriteBufferLen
+ * The length of the write buffer
+ * @param pcCommandString
+ * The list of parameters entered by the user
+ * @return BaseType_t
+ * pdFALSE to indicate command completion
+ */
+static BaseType_t cli_handler_ble_get_item(
+    char *pcWriteBuffer,
+    size_t xWriteBufferLen,
+    const char *pcCommandString
+)
+{
+    ble_cli_packet_t ble_packet;
+
+    ble_packet.action = BLE_ACTION_GET_ITEM;
+
+    // Remove compile time warnings about unused parameters, and check the
+    // write buffer is not NULL.
+    // NOTE - for simplicity, this example assumes the write buffer length
+    // is adequate, so does not check for buffer overflows
+    (void)pcCommandString;
+    (void)xWriteBufferLen;
+    configASSERT(pcWriteBuffer);
+
+    // Send the message to the BLE task
+    ble_packet.return_queue = q_ble_cli_resp;
+    xQueueSendToBack(q_ble_cli_req, &ble_packet, portMAX_DELAY);
+
+    // Wait for connection to complete
+    xQueueReceive(q_ble_cli_resp, &ble_packet, portMAX_DELAY);
+
+    // Nothing to return, so zero out the pcWriteBuffer
+    memset(pcWriteBuffer, 0, xWriteBufferLen);
+
+    return pdFALSE;
+}
 
 /******************************************************************************
  * Public Function Definitions                                                *
  ******************************************************************************/
 void task_ble_init(void)
 {
-    // Create the Queues used to control BLE
-    q_ble_req  = xQueueCreate(1, sizeof(ble_packet_t));
-    q_ble_resp = xQueueCreate(1, sizeof(ble_packet_t));
+    // Create the Queues used to control BLE from CLI
+    q_ble_cli_req  = xQueueCreate(1, sizeof(ble_cli_packet_t));
+    q_ble_cli_resp = xQueueCreate(1, sizeof(ble_cli_packet_t));
 
     // Register the CLI commands
     FreeRTOS_CLIRegisterCommand(&xBlePair);
     FreeRTOS_CLIRegisterCommand(&xBleCheckConnection);
     FreeRTOS_CLIRegisterCommand(&xBleNotify);
     FreeRTOS_CLIRegisterCommand(&xBleReadJoystick);
+    FreeRTOS_CLIRegisterCommand(&xBleGetItem);
 
-    // Create the task that will control BLE
+    // Create the task that will control BLE via the CLI
     xTaskCreate(
-        task_ble,
-        "Task_BLE",
+        task_ble_cli,
+        "Task_BLE_CLI",
         configMINIMAL_STACK_SIZE * 2,
         NULL,
         configMAX_PRIORITIES - 6,

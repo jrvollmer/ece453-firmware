@@ -55,6 +55,7 @@
 #include "app_bt_event_handler.h"
 #include "app_bt_gatt_handler.h"
 #include "app_bt_utils.h"
+#include "app_bt_car.h"
 #include "wiced_bt_stack.h"
 #include "wiced_bt_dev.h"
 #include "wiced_bt_ble.h"
@@ -343,6 +344,9 @@ void app_bt_application_init(void)
 
     app_bt_interrupt_config();
 
+    // Initialize application-level BLE resources for the car
+    app_bt_car_init();
+    // Initialize all HW resources that interface with BLE
     app_bt_hw_init();
 
     if(CY_RSLT_SUCCESS == app_bt_restore_bond_data())

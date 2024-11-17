@@ -58,6 +58,7 @@
 #include "app_bt_event_handler.h"
 #include "app_bt_gatt_handler.h"
 #include "app_hw_device.h"
+#include "app_bt_car.h"
 #ifdef ENABLE_BT_SPY_LOG
 #include "cybt_debug_uart.h"
 #endif
@@ -510,6 +511,11 @@ app_bt_gatt_connection_down(wiced_bt_gatt_connection_status_t *p_status)
     memset(hello_sensor_state.remote_addr, 0, BD_ADDR_LEN);
     hello_sensor_state.conn_id = 0;
 
+    // TODO There might be a better way to handle this in case we momentarily disconnect from the controller and then reconnect while still in controller mode
+    // TODO Better way would be to not use a queue in firmware and just manage item state on the app
+    // Reset item queue
+    xQueueReset(q_ble_car_item);
+
     /* Start advertisements after disconnection */
     result = wiced_bt_start_advertisements(BTM_BLE_ADVERT_UNDIRECTED_HIGH,
                                            0,
@@ -602,6 +608,12 @@ wiced_bt_gatt_status_t app_bt_set_value(uint16_t attr_handle,
                     app_rc_controller_joystick_x[1] = p_attr[1];
                     app_rc_controller_joystick_x[2] = p_attr[2];
                     app_rc_controller_joystick_x[3] = p_attr[3];
+
+                    // Queue float for consumption
+                    car_joystick_t val_x;
+                    memcpy(&val_x, &app_rc_controller_joystick_x, app_rc_controller_joystick_x_len);
+                    xQueueSendToBack(q_ble_car_joystick_x, &val_x, 0);
+
                     break;
 
                 case HDLC_RC_CONTROLLER_JOYSTICK_Y_VALUE:
@@ -613,6 +625,12 @@ wiced_bt_gatt_status_t app_bt_set_value(uint16_t attr_handle,
                     app_rc_controller_joystick_y[1] = p_attr[1];
                     app_rc_controller_joystick_y[2] = p_attr[2];
                     app_rc_controller_joystick_y[3] = p_attr[3];
+
+                    // Queue float for consumption
+                    car_joystick_t val_y;
+                    memcpy(&val_y, &app_rc_controller_joystick_y, app_rc_controller_joystick_y_len);
+                    xQueueSendToBack(q_ble_car_joystick_y, &val_y, 0);
+
                     break;
 
                 case HDLC_RC_CONTROLLER_USE_ITEM_VALUE:
@@ -621,6 +639,10 @@ wiced_bt_gatt_status_t app_bt_set_value(uint16_t attr_handle,
                         return WICED_BT_GATT_INVALID_ATTR_LEN;
                     }
                     app_rc_controller_use_item[0] = p_attr[0];
+
+                    // Triggers IR LED and audio tasks
+                    app_bt_car_use_item();
+
                     break;
 
                 /* By writing into Characteristic Client Configuration descriptor
