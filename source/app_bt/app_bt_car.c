@@ -55,7 +55,7 @@ BaseType_t app_bt_car_get_new_item(void)
 {
     BaseType_t ret = pdFALSE;
 
-    if (hello_sensor_state.conn_id)
+    if (ble_state.conn_id)
     {
         // Connected to app
         const ble_item_e item = rand() % BLE_ITEM_MAX;

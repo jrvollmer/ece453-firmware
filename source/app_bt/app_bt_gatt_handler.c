@@ -213,7 +213,7 @@ app_bt_gatt_req_cb (wiced_bt_gatt_attribute_request_t *p_attr_req,
         case GATT_HANDLE_VALUE_CONF:
             {
                 // printf("Indication Confirmation received \n");
-                hello_sensor_state.flag_indication_sent = FALSE;
+                ble_state.flag_indication_sent = FALSE;
             }
              break;
 
@@ -467,8 +467,8 @@ app_bt_gatt_connection_up( wiced_bt_gatt_connection_status_t *p_status )
     // printf("Connection ID '%d' \n", p_status->conn_id);
 
     /* Update the connection handler.  Save address of the connected device. */
-    hello_sensor_state.conn_id = p_status->conn_id;
-    memcpy(hello_sensor_state.remote_addr, p_status->bd_addr,
+    ble_state.conn_id = p_status->conn_id;
+    memcpy(ble_state.remote_addr, p_status->bd_addr,
            sizeof(wiced_bt_device_address_t));
 #ifdef PSOC6_BLE
     /* Refer to Note 2 in Document History section of Readme.md */
@@ -508,8 +508,8 @@ app_bt_gatt_connection_down(wiced_bt_gatt_connection_status_t *p_status)
         //    get_bt_gatt_disconn_reason_name(p_status->reason));
 
     /* Resetting the device info */
-    memset(hello_sensor_state.remote_addr, 0, BD_ADDR_LEN);
-    hello_sensor_state.conn_id = 0;
+    memset(ble_state.remote_addr, 0, BD_ADDR_LEN);
+    ble_state.conn_id = 0;
 
     /* Start advertisements after disconnection */
     result = wiced_bt_start_advertisements(BTM_BLE_ADVERT_UNDIRECTED_HIGH,
@@ -725,7 +725,7 @@ void app_bt_send_message(void)
 
     if(app_rc_controller_get_item_client_char_config[0] & GATT_CLIENT_CONFIG_NOTIFICATION)
     {
-        status = wiced_bt_gatt_server_send_notification(hello_sensor_state.conn_id, // Reusing conneciton ID from hello sensor code
+        status = wiced_bt_gatt_server_send_notification(ble_state.conn_id,
                                                         HDLC_RC_CONTROLLER_GET_ITEM_VALUE,
                                                         app_rc_controller_get_item_len,
                                                         app_rc_controller_get_item,
@@ -733,7 +733,7 @@ void app_bt_send_message(void)
     }
     else if(app_rc_controller_lap_client_char_config[0] & GATT_CLIENT_CONFIG_NOTIFICATION)
     {
-        status = wiced_bt_gatt_server_send_notification(hello_sensor_state.conn_id, // Reusing conneciton ID from hello sensor code
+        status = wiced_bt_gatt_server_send_notification(ble_state.conn_id,
                                                         HDLC_RC_CONTROLLER_LAP_VALUE,
                                                         app_rc_controller_lap_len,
                                                         app_rc_controller_lap,

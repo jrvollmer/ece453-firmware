@@ -67,8 +67,8 @@
  * Variable Definitions
  ******************************************************************************/
 
-/* Holds the global state of the hello sensor application */
-hello_sensor_state_t hello_sensor_state;
+/* Holds important BLE state information that is not provided by generated sources */
+ble_state_t ble_state;
 
 
 /* This is the index for the link keys, cccd and privacy mode of the host we are 
@@ -402,7 +402,7 @@ void app_bt_adv_stop_handler(void)
 {
     wiced_result_t result;
 
-    if ((!hello_sensor_state.conn_id) && (!pairing_mode))
+    if ((!ble_state.conn_id) && (!pairing_mode))
     {
         result =  wiced_bt_start_advertisements(BTM_BLE_ADVERT_UNDIRECTED_HIGH,
                                                 0,

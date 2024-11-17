@@ -55,13 +55,13 @@ typedef struct
     uint16_t  peer_mtu;                     // peer MTU
     uint8_t   flag_indication_sent;         // to store the state of indication confirmation
     uint8_t   num_to_send;                  // number of messages to send. Incremented on each button interrupt   
-} hello_sensor_state_t; // TODO Rename this and state variable
+} ble_state_t; // TODO Clean up unused/hello sensor specific attributes
 
 /*******************************************************************************
  * Variable Definitions
  ******************************************************************************/
-/* Holds the global state of the hello sensor application */
-extern hello_sensor_state_t hello_sensor_state;
+/* Holds important BLE state information that is not provided by generated sources */
+extern ble_state_t ble_state;
 
 extern uint8_t bondindex;
 /*******************************************************************************

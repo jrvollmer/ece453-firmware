@@ -163,8 +163,8 @@ void app_bt_led_blink(uint8_t num_of_blinks)
  */
 void app_bt_timeout_ms_btn(TimerHandle_t timer_handle)
 {
-    hello_sensor_state.timer_count_ms++;
-    if(APP_BTN_PRESS_5S == (hello_sensor_state.timer_count_ms - btn_press_start) && (is_btn_pressed))
+    ble_state.timer_count_ms++;
+    if(APP_BTN_PRESS_5S == (ble_state.timer_count_ms - btn_press_start) && (is_btn_pressed))
     {
         /* Start LED blink indicate for 5 more seconds */
         cyhal_gpio_write(CYBSP_USER_LED2 , CYBSP_LED_STATE_ON);
@@ -372,14 +372,14 @@ void button_task(void *arg)
         if(CYBSP_BTN_PRESSED == cyhal_gpio_read(CYBSP_USER_BTN))
         {
             is_btn_pressed = TRUE;
-            btn_press_start = hello_sensor_state.timer_count_ms;
+            btn_press_start = ble_state.timer_count_ms;
             cyhal_gpio_write(CYBSP_USER_LED2 , CYBSP_LED_STATE_ON);
         }
         else if(0 != btn_press_start)
         {
             is_btn_pressed = FALSE;
             cyhal_gpio_write(CYBSP_USER_LED2 , CYBSP_LED_STATE_OFF);
-            btn_press_duration = hello_sensor_state.timer_count_ms - btn_press_start;
+            btn_press_duration = ble_state.timer_count_ms - btn_press_start;
 
             /* Check if button press is short */
             if((btn_press_duration > APP_BTN_PRESS_SHORT_MIN) &&
@@ -390,7 +390,7 @@ void button_task(void *arg)
                 cyhal_gpio_write(CYBSP_USER_LED2 , CYBSP_LED_STATE_OFF);
                 /* If connection is down, start high duty advertisements,
                  * so client can connect */
-                if (0 == hello_sensor_state.conn_id)
+                if (0 == ble_state.conn_id)
                 {
                     // printf("Starting Undirected High Advertisement\n");
                     result = wiced_bt_start_advertisements(BTM_BLE_ADVERT_UNDIRECTED_HIGH,
@@ -407,7 +407,7 @@ void button_task(void *arg)
                     app_bt_gatt_increment_notify_value();
 
                     /* Remember how many messages we need to send */
-                    hello_sensor_state.num_to_send++;
+                    ble_state.num_to_send++;
 
                     /* Connection up.
                      * Send message if client registered to receive indication
@@ -415,13 +415,13 @@ void button_task(void *arg)
                      * ack before we can send anything else */
 
                     // printf("No. to write: %d\n",
-                        //    hello_sensor_state.num_to_send);
+                        //    ble_state.num_to_send);
                     // printf("flag_indication_sent: %d \n",
-                        //    hello_sensor_state.flag_indication_sent);
-                    while ((0 != hello_sensor_state.num_to_send) &&
-                           (FALSE == hello_sensor_state.flag_indication_sent))
+                        //    ble_state.flag_indication_sent);
+                    while ((0 != ble_state.num_to_send) &&
+                           (FALSE == ble_state.flag_indication_sent))
                     {
-                        hello_sensor_state.num_to_send--;
+                        ble_state.num_to_send--;
                         app_bt_send_message();
                     }
                 }
@@ -468,7 +468,7 @@ void button_task(void *arg)
             {
                 // printf("Button pressed more than 10 seconds,"
                     //    "attempting to clear bond info\n");
-                if (0 == hello_sensor_state.conn_id)
+                if (0 == ble_state.conn_id)
                 {
                     /* Reset Kv-store library, this will clear the flash */
                     rslt = mtb_kvstore_reset(&kvstore_obj);

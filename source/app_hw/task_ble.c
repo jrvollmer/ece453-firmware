@@ -180,9 +180,9 @@ static void task_ble_cli(void *param)
         }
         else if (ble_packet.action == BLE_ACTION_CHECK_CONN)
         {
-            if (hello_sensor_state.conn_id)
+            if (ble_state.conn_id)
             {
-                task_print_info("Connected with connection ID '%d'", hello_sensor_state.conn_id);
+                task_print_info("Connected with connection ID '%d'", ble_state.conn_id);
             }
             else
             {
@@ -202,12 +202,12 @@ static void task_ble_cli(void *param)
             // Tell user if notification was sent or not
             if(app_rc_controller_get_item_client_char_config[0] & GATT_CLIENT_CONFIG_NOTIFICATION)
             {
-                task_print_info("Sent item value 0x%0x to client '%d'", ble_packet.data, hello_sensor_state.conn_id);
+                task_print_info("Sent item value 0x%0x to client '%d'", ble_packet.data, ble_state.conn_id);
             }
             else
             {
                 task_print_warning("Client is not registered to receive notifications");
-                task_print_info("Client '%d' can still use a read request to get item value 0x%0x", hello_sensor_state.conn_id, ble_packet.data);
+                task_print_info("Client '%d' can still use a read request to get item value 0x%0x", ble_state.conn_id, ble_packet.data);
             }
 
             // Send packet back once done
