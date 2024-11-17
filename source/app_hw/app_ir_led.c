@@ -95,7 +95,7 @@ BaseType_t app_ir_led_use_item(car_item_t item)
  */
 static void app_ir_led_timers_init(void)
 {
-    for (int i=0; i < CAR_ITEM_MAX; i++)
+    for (int i=(CAR_ITEM_MIN+1); i < CAR_ITEM_MAX; i++)
     {
         if (item_delays_ms[i] > 0)
         {

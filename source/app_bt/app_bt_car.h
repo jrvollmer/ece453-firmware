@@ -24,7 +24,6 @@
  * Typedefs and Defines
  ***************************************************************************/
 // Queue constants
-#define BLE_CAR_ITEM_QUEUE_LEN        (3)
 #define BLE_CAR_JOYSTICK_QUEUE_LEN    (3)
 
 #define BLE_CAR_MAX_LAP_COUNT    (3)
@@ -46,7 +45,6 @@ typedef enum
  * Extern Data Declarations
  ***************************************************************************/
 // Queues for incoming BLE messages
-extern QueueHandle_t q_ble_car_item;
 extern QueueHandle_t q_ble_car_joystick_x;
 extern QueueHandle_t q_ble_car_joystick_y;
 
@@ -57,7 +55,7 @@ extern QueueHandle_t q_ble_car_joystick_y;
 
 void app_bt_car_init(void);
 BaseType_t app_bt_car_get_new_item(void);
-BaseType_t app_bt_car_use_item(void);
+BaseType_t app_bt_car_use_item(car_item_t item);
 void app_bt_car_complete_lap(void);
 
 

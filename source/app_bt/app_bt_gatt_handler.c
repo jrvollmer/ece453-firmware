@@ -511,11 +511,6 @@ app_bt_gatt_connection_down(wiced_bt_gatt_connection_status_t *p_status)
     memset(hello_sensor_state.remote_addr, 0, BD_ADDR_LEN);
     hello_sensor_state.conn_id = 0;
 
-    // TODO There might be a better way to handle this in case we momentarily disconnect from the controller and then reconnect while still in controller mode
-    // TODO Better way would be to not use a queue in firmware and just manage item state on the app
-    // Reset item queue
-    xQueueReset(q_ble_car_item);
-
     /* Start advertisements after disconnection */
     result = wiced_bt_start_advertisements(BTM_BLE_ADVERT_UNDIRECTED_HIGH,
                                            0,
@@ -641,7 +636,7 @@ wiced_bt_gatt_status_t app_bt_set_value(uint16_t attr_handle,
                     app_rc_controller_use_item[0] = p_attr[0];
 
                     // Triggers IR LED and audio tasks
-                    app_bt_car_use_item();
+                    app_bt_car_use_item((car_item_t)app_rc_controller_use_item[0]);
 
                     break;
 
