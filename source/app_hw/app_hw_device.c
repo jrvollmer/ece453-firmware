@@ -60,6 +60,8 @@
 #include "app_ir_led.h"
 #include "task_audio.h"
 #include "task_ir_led.h"
+#include "task_car.h"
+#include "dc_motor.h"
 #ifdef ENABLE_BT_SPY_LOG
 #include "cybt_debug_uart.h"
 #endif
@@ -347,6 +349,9 @@ void app_bt_hw_init()
     // Initailize all tasks for the car
     task_audio_init();
     task_ir_led_init();
+    
+    dc_motor_init();
+    task_car_init();
 }
 
 /**

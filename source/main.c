@@ -64,6 +64,7 @@
 #include "app_bt_utils.h"
 #include "task_console.h"
 #include "task_ble.h"
+#include "task_car.h"
 #ifdef ENABLE_BT_SPY_LOG
 #include "cybt_debug_uart.h"
 #endif
