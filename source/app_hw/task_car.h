@@ -3,6 +3,7 @@
 
 #include "app_bt_car.h"
 #include "dc_motor.h"
+#include "servo_motor.h"
 #include <FreeRTOS.h>
 #include "task_console.h"
 
