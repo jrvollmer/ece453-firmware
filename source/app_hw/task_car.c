@@ -20,6 +20,7 @@ void task_car_init() {
 
 void task_car(void *pvParameters) {
     car_joystick_t y_dir = 0;
+    turn_dc_motor_off();
     
     while(1) {
         xQueueReceive(q_ble_car_joystick_y, &y_dir, portMAX_DELAY);
@@ -27,11 +28,11 @@ void task_car(void *pvParameters) {
         if (y_dir > 0.5) {
             // go forwards
             set_dc_motor_direction(FORWARD);
-            set_dc_motor_duty_cycle(25); 
+            set_dc_motor_duty_cycle(50); 
         } else if (y_dir < -0.5) {
             // go backwards
             set_dc_motor_direction(REVERSE);
-            set_dc_motor_duty_cycle(25);
+            set_dc_motor_duty_cycle(50);
         } else {
             // turn motor off
             turn_dc_motor_off();

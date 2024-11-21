@@ -15,13 +15,11 @@ void task_servo() {
     while (1) {
         xQueueReceive(q_ble_car_joystick_x, &x_dir, portMAX_DELAY);
         if (x_dir > 0.5) {
-            // go right
-            set_servo_motor_duty_cycle(LEFT30);
+            // remember that the servo is upside down, so left and right are different. 
+            set_servo_motor_duty_cycle(LEFT45);
         } else if (x_dir < -0.5) {
-            // go left
-            set_servo_motor_duty_cycle(RIGHT30);
+            set_servo_motor_duty_cycle(RIGHT45);
         } else {
-            // go "straight"
             set_servo_motor_duty_cycle(STRAIGHT);
         }
         vTaskDelay(10);
