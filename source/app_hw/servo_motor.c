@@ -3,23 +3,49 @@
 cyhal_pwm_t servo_pwm_obj;
 
 
-/**
- * @brief
- * Initializes software resources related to the operation of
- * the brushed DC motor.  
- */
-void servo_motor_init(void) {
-	 cy_rslt_t rslt;
-    
-    /* Initialize PWM on the supplied pin and assign a new clock */
-     rslt = cyhal_pwm_init(&servo_pwm_obj, SERVO_PIN, NULL);
-     CY_ASSERT(CY_RSLT_SUCCESS == rslt);
-    
-}
-
 void set_servo_motor_duty_cycle(float duty_cycle) {
     cy_rslt_t rslt;
     rslt = cyhal_pwm_set_duty_cycle(&servo_pwm_obj, duty_cycle, 50);
     rslt = cyhal_pwm_start(&servo_pwm_obj);
     CY_ASSERT(CY_RSLT_SUCCESS == rslt);
+}
+
+void task_servo() {
+    car_joystick_t x_dir = 0;
+    while (1) {
+        xQueueReceive(q_ble_car_joystick_x, &x_dir, portMAX_DELAY);
+        if (x_dir > 0.5) {
+            // go right
+            set_servo_motor_duty_cycle(LEFT30);
+        } else if (x_dir < -0.5) {
+            // go left
+            set_servo_motor_duty_cycle(RIGHT30);
+        } else {
+            // go "straight"
+            set_servo_motor_duty_cycle(STRAIGHT);
+        }
+        vTaskDelay(10);
+    }
+}
+
+void task_servo_init() {
+    cy_rslt_t rslt1;
+    
+    /* Initialize PWM on the supplied pin and assign a new clock */
+    rslt1 = cyhal_pwm_init(&servo_pwm_obj, SERVO_PIN, NULL);
+    CY_ASSERT(CY_RSLT_SUCCESS == rslt1);
+
+    // create the task
+    BaseType_t rslt = xTaskCreate(task_servo,
+                                  "servo",
+                                  configMINIMAL_STACK_SIZE,
+                                  NULL,
+                                  configMAX_PRIORITIES - 5,
+                                  NULL);
+    if (rslt == pdPASS) {
+        task_print("servo task created\n\r");
+    }
+    else {
+        task_print("servo task NOT created\n\r");
+    }
 }

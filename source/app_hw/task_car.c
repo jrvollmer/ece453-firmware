@@ -17,39 +17,24 @@ void task_car_init() {
 }
 
 
+
 void task_car(void *pvParameters) {
     car_joystick_t y_dir = 0;
-    car_joystick_t x_dir = 0;
-
+    
     while(1) {
         xQueueReceive(q_ble_car_joystick_y, &y_dir, portMAX_DELAY);
 
         if (y_dir > 0.5) {
             // go forwards
             set_dc_motor_direction(FORWARD);
-            set_dc_motor_duty_cycle(5); 
+            set_dc_motor_duty_cycle(25); 
         } else if (y_dir < -0.5) {
             // go backwards
             set_dc_motor_direction(REVERSE);
-            set_dc_motor_duty_cycle(5);
+            set_dc_motor_duty_cycle(25);
         } else {
             // turn motor off
             turn_dc_motor_off();
         }
-
-        xQueueReceive(q_ble_car_joystick_x, &x_dir, portMAX_DELAY);
-        if (x_dir > 0.5) {
-            // go right
-            set_servo_motor_duty_cycle(RIGHT30);
-        } else if (x_dir < -0.5) {
-            // go left
-            set_servo_motor_duty_cycle(LEFT30);
-        } else {
-            // go "straight"
-            set_servo_motor_duty_cycle(STRAIGHT);
-        }
-
-
-        // vTaskDelay(100);
     }
 }

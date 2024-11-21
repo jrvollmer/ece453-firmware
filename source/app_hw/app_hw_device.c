@@ -351,6 +351,7 @@ void app_bt_hw_init()
     task_ir_led_init();
     
     dc_motor_init();
+    task_servo_init();
     task_car_init();
 }
 

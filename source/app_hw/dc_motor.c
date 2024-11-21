@@ -15,7 +15,7 @@ void dc_motor_init(void) {
     CY_ASSERT(CY_RSLT_SUCCESS == rslt);
 
     // Initialize the pin that controls the direction
-    rslt = cyhal_gpio_configure(DC_MOTOR_DIR_PIN, CYHAL_GPIO_DIR_OUTPUT, 1);
+    rslt = cyhal_gpio_configure(DC_MOTOR_DIR_PIN, CYHAL_GPIO_DIR_OUTPUT, CYHAL_GPIO_DRIVE_STRONG);
     CY_ASSERT(CY_RSLT_SUCCESS == rslt);
 }
 
