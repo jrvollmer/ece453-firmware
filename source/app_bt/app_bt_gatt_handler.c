@@ -59,6 +59,7 @@
 #include "app_bt_gatt_handler.h"
 #include "app_hw_device.h"
 #include "app_bt_car.h"
+#include "task_console.h"
 #ifdef ENABLE_BT_SPY_LOG
 #include "cybt_debug_uart.h"
 #endif
@@ -510,6 +511,24 @@ app_bt_gatt_connection_down(wiced_bt_gatt_connection_status_t *p_status)
     /* Resetting the device info */
     memset(ble_state.remote_addr, 0, BD_ADDR_LEN);
     ble_state.conn_id = 0;
+
+    pairing_mode = TRUE;
+    task_print_info("Disconnected %u", p_status->reason); // TODO REMOVE
+    if (p_status->reason == GATT_CONN_TERMINATE_PEER_USER)
+    {
+        // The client disconnected. Remove them from address resolution list
+        // to avoid weird issue with not being able to bond with other clients
+        result = wiced_bt_start_advertisements(BTM_BLE_ADVERT_OFF,
+                                               0,
+                                               NULL);
+        result &= wiced_bt_ble_address_resolution_list_clear_and_disable();
+        if (result == WICED_BT_SUCCESS)
+        {
+            /* Clear peer link keys and identity keys structure */
+            memset(&bond_info, 0, sizeof(bond_info));
+            memset(&identity_keys, 0, sizeof(identity_keys));
+        }
+    }
 
     /* Start advertisements after disconnection */
     result = wiced_bt_start_advertisements(BTM_BLE_ADVERT_UNDIRECTED_HIGH,

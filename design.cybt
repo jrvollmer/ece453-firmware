@@ -72,7 +72,7 @@
                                         <Field>
                                             <FieldProperties>
                                                 <Property id="Name" value="Category"/>
-                                                <Property id="EnumValue" value="0"/>
+                                                <Property id="EnumValue" value="384"/>
                                                 <Property id="Format" value="f_16bit"/>
                                             </FieldProperties>
                                         </Field>
@@ -631,7 +631,7 @@
             <Property id="DeviceAddress" value="00A050-000000"/>
             <Property id="MacGeneratedAddress" value="false"/>
             <Property id="DeviceName" value="Default"/>
-            <Property id="Appearance" value="0"/>
+            <Property id="Appearance" value="384"/>
             <Property id="HostTxPowerLevel" value="Pos_0"/>
             <Property id="EnableRpaTimeout" value="true"/>
             <Property id="RpaTimeout" value="900"/>
