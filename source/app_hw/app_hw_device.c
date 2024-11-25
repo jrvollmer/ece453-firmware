@@ -62,6 +62,9 @@
 #include "task_ir_led.h"
 #include "task_car.h"
 #include "dc_motor.h"
+#include "i2c.h"
+#include "servo_motor.h"
+#include "task_color_sensor.h"
 #ifdef ENABLE_BT_SPY_LOG
 #include "cybt_debug_uart.h"
 #endif
@@ -350,6 +353,8 @@ void app_bt_hw_init()
     task_audio_init();
     task_ir_led_init();
     
+    i2c_init();
+    task_color_sensor_init();
     dc_motor_init();
     task_servo_init();
     task_car_init();
