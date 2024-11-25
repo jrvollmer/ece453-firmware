@@ -1,11 +1,13 @@
+#include <FreeRTOS.h>
+#include "app_bt_car.h"
+#include "dc_motor.h"
+#include "task_console.h"
+#include "task_color_sensor.h"
 #include "task_car.h"
 
 #define IR_RECEIVER_PIN P10_2
 
 volatile bool i_am_hit = false;
-
-
-
 
 // ISR function to detect hits
 void ir_receiver_pin_isr(void *handler_arg, cyhal_gpio_event_t event) {
@@ -34,7 +36,7 @@ void task_car_init() {
     // create the task
     BaseType_t rslt = xTaskCreate(task_car,
                                   "Car",
-                                  configMINIMAL_STACK_SIZE,
+                                  configMINIMAL_STACK_SIZE * 3,
                                   NULL,
                                   configMAX_PRIORITIES - 5,
                                   NULL);
@@ -71,6 +73,7 @@ void task_car(void *pvParameters) {
                 speed = 30;
 				// give powerup
                 if (!powerup_given) {
+                    task_print("giving powerup via color sensor\n");
                     if (app_bt_car_get_new_item() == pdTRUE) {
                         task_print("successfully got item\n");
                     } else {
