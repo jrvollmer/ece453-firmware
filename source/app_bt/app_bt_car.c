@@ -62,7 +62,7 @@ BaseType_t app_bt_car_get_new_item(void)
 
         // Send if client is registered to receive notifications
         app_rc_controller_get_item[0] = (car_item_t)item;
-        app_bt_send_message();
+        app_bt_send_message(HDLC_RC_CONTROLLER_GET_ITEM_VALUE);
 
         ret = pdTRUE;
     }
@@ -106,11 +106,12 @@ void app_bt_car_complete_lap(void)
 {
     static car_lap_t lap_count = 1;
 
+    lap_count = (lap_count % BLE_CAR_MAX_LAP_COUNT) + 1;
+
     // Send if client is registered to receive notifications
     app_rc_controller_lap[0] = lap_count;
-    app_bt_send_message();
+    app_bt_send_message(HDLC_RC_CONTROLLER_LAP_VALUE);
 
-    lap_count = (lap_count % BLE_CAR_MAX_LAP_COUNT) + 1;
 }
 
 

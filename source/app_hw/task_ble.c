@@ -197,7 +197,7 @@ static void task_ble_cli(void *param)
             app_rc_controller_get_item[0] = ble_packet.data;
 
             // Send if client is registered to receive notifications
-            app_bt_send_message();
+            app_bt_send_message(HDLC_RC_CONTROLLER_GET_ITEM_VALUE);
 
             // Tell user if notification was sent or not
             if(app_rc_controller_get_item_client_char_config[0] & GATT_CLIENT_CONFIG_NOTIFICATION)

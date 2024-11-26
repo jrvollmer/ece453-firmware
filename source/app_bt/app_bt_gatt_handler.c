@@ -730,19 +730,20 @@ wiced_bt_gatt_status_t app_bt_set_value(uint16_t attr_handle,
  *   @brief Check if client has registered for notification/indication and send
  *   message if appropriate
  *
- *   @param None
+ *   @param uint16_t
+ *   The attribute handle of the message to send
  *
  *   @return None
  *
  */
-void app_bt_send_message(void)
+void app_bt_send_message(uint16_t handle)
 {
     wiced_bt_gatt_status_t status;
     // printf("hello_sensor_send_message: CCCD:%d\n", app_hello_sensor_notify_client_char_config[0]);
 
     UNUSED_VARIABLE(status);
 
-    if(app_rc_controller_get_item_client_char_config[0] & GATT_CLIENT_CONFIG_NOTIFICATION)
+    if((handle == HDLC_RC_CONTROLLER_GET_ITEM_VALUE) && (app_rc_controller_get_item_client_char_config[0] & GATT_CLIENT_CONFIG_NOTIFICATION))
     {
         status = wiced_bt_gatt_server_send_notification(ble_state.conn_id,
                                                         HDLC_RC_CONTROLLER_GET_ITEM_VALUE,
@@ -750,7 +751,7 @@ void app_bt_send_message(void)
                                                         app_rc_controller_get_item,
                                                         NULL);
     }
-    else if(app_rc_controller_lap_client_char_config[0] & GATT_CLIENT_CONFIG_NOTIFICATION)
+    else if((handle == HDLC_RC_CONTROLLER_LAP_VALUE) && (app_rc_controller_lap_client_char_config[0] & GATT_CLIENT_CONFIG_NOTIFICATION))
     {
         status = wiced_bt_gatt_server_send_notification(ble_state.conn_id,
                                                         HDLC_RC_CONTROLLER_LAP_VALUE,
