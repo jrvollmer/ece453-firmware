@@ -83,25 +83,25 @@ void task_car(void *pvParameters) {
                 }
 				break;
 		}
-        xQueueReceive(q_ble_car_joystick_y, &y_dir, portMAX_DELAY);
-        if (y_dir > 0.5) {
-            // go forwards
-            set_dc_motor_direction(FORWARD);
-            set_dc_motor_duty_cycle(speed); 
-        } else if (y_dir < -0.5) {
-            // go backwards
-            set_dc_motor_direction(REVERSE);
-            set_dc_motor_duty_cycle(speed);
-        } else {
-            // turn motor off
+        
+        if (i_am_hit) {
             turn_dc_motor_off();
-        }
-        // if (i_am_hit) {
-        //     turn_dc_motor_off();
-        //     vTaskDelay(5000);
-        //     i_am_hit = false;
-        // } else {
-            
-        // }       
+            vTaskDelay(5000);
+            i_am_hit = false;
+        } else {
+            xQueueReceive(q_ble_car_joystick_y, &y_dir, portMAX_DELAY);
+            if (y_dir > 0.5) {
+                // go forwards
+                set_dc_motor_direction(FORWARD);
+                set_dc_motor_duty_cycle(speed); 
+            } else if (y_dir < -0.5) {
+                // go backwards
+                set_dc_motor_direction(REVERSE);
+                set_dc_motor_duty_cycle(speed);
+            } else {
+                // turn motor off
+                turn_dc_motor_off();
+            }
+        }       
     }
 }
