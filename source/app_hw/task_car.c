@@ -5,7 +5,7 @@
 #include "task_color_sensor.h"
 #include "task_car.h"
 
-#define IR_RECEIVER_PIN P10_3
+#define IR_RECEIVER_PIN P10_2
 
 volatile bool i_am_hit = false;
 

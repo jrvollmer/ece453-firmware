@@ -358,7 +358,7 @@ void app_bt_hw_init()
     task_color_sensor_init();
     dc_motor_init();
     task_servo_init();
-    // task_hall_sensor_init();
+    task_hall_sensor_init();
     task_car_init();
 }
 
@@ -435,7 +435,7 @@ void button_task(void *arg)
                            (FALSE == ble_state.flag_indication_sent))
                     {
                         ble_state.num_to_send--;
-                        app_bt_send_message();
+                        // app_bt_send_message();
                     }
                 }
             }
