@@ -1,4 +1,5 @@
 #include "servo_motor.h"
+#include <math.h>
 
 cyhal_pwm_t servo_pwm_obj;
 
@@ -11,18 +12,19 @@ void set_servo_motor_duty_cycle(float duty_cycle) {
 }
 
 void task_servo() {
-    car_joystick_t x_dir = 0;
+    car_joystick_t x = 0;
+    car_joystick_t prev_x = x;
     while (1) {
-        xQueueReceive(q_ble_car_joystick_x, &x_dir, portMAX_DELAY);
-        if (x_dir > 0.5) {
-            // remember that the servo is upside down, so left and right are different. 
-            set_servo_motor_duty_cycle(LEFT30);
-        } else if (x_dir < -0.5) {
-            set_servo_motor_duty_cycle(RIGHT30);
-        } else {
-            set_servo_motor_duty_cycle(STRAIGHT);
+        xQueueReceive(q_ble_car_joystick_x, &x, portMAX_DELAY);
+        if (fabs(x - prev_x) > 0.01) {
+            // Clamp to 0 to make sure we don't get stuck in a near-straight position
+            if (x > -0.01 && x < 0.01) {
+                x = 0;
+            }
+            // Servo is upside down, so left and right are reversed
+            set_servo_motor_duty_cycle(STRAIGHT + TURN_DUTY_RANGE * x);
+            prev_x = x;
         }
-        vTaskDelay(10);
     }
 }
 

@@ -43,10 +43,11 @@ void task_hall_sensor(void *param) {
 		// read the ADC value
 		uint32_t hall_sensor_out = cyhal_adc_read(&channel_obj);
 
+        
+
 		// determine if there is a magnet
 		if(hall_sensor_out > no_magnet_value + HALL_THRESHOLD || hall_sensor_out < no_magnet_value - HALL_THRESHOLD) {
             app_bt_car_complete_lap(); // increment laps on mobile app
-            task_print("lap counted\n");
             vTaskDelay(5000); // prevent another lap from being scored for 5 secs
         }
         vTaskDelay(5);

@@ -27,6 +27,9 @@
 
 #define REVERSE 0
 #define FORWARD 1
+#define STOPPED 2
+#define DC_MOTOR_RAMP_STEP_VAL    (0.1)
+#define DC_MOTOR_RAMP_STEP_MS     (1) // TODO Tune
 
 void dc_motor_init(void);
 void set_dc_motor_direction(uint8_t dir);

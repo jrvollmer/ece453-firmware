@@ -11,7 +11,7 @@
 #include "task_console.h"
 #include "app_bt_car.h"
 
-#define HALL_SENSOR_ADC_PIN P10_3
+#define HALL_SENSOR_ADC_PIN P10_2
 // NOTE: 620 = 1V
 #define HALL_THRESHOLD 40
 
