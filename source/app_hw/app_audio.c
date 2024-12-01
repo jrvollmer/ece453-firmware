@@ -15,6 +15,100 @@
 
 
 /******************************************************************************/
+/* Defines and Typedefs                                                       */
+/******************************************************************************/
+typedef struct
+{
+    DW_Type* hw;
+    uint16_t ch;
+} app_audio_dma_config_s;
+
+#define PCLK_24_5_FREQ    (100000000)
+#define DMA_DESCRIPTOR_MAX_SIZE    (256)
+
+// ((max_clock_rate_hz / sample_rate_hz) - 1): divider_value - 1 to account for +1 in API call
+// TODO Fractional divider
+#define SAMPLE_RATE_TO_PCLK_24_5_DIV(SR)    ((uint32_t)(PCLK_24_5_FREQ / (SR)) - 1UL)
+#define DMA_DESCRIPTOR_SRC_OFFSET(T,BASE,I)    ((T*) ((BASE) + (DMA_DESCRIPTOR_MAX_SIZE * (I))))
+
+#define SOUND_EFFECT_DMA_INFO \
+    (app_audio_dma_config_s[]){ \
+        [AUDIO_SOUND_EFFECT_GET_ITEM] = (app_audio_dma_config_s){ \
+            .hw = cpuss_0_dw1_0_chan_1_HW, \
+            .ch = cpuss_0_dw1_0_chan_1_CHANNEL \
+        }, \
+        [AUDIO_SOUND_EFFECT_USE_SHIELD] = (app_audio_dma_config_s){ \
+            .hw = cpuss_0_dw1_0_chan_2_HW, \
+            .ch = cpuss_0_dw1_0_chan_2_CHANNEL \
+        }, \
+        [AUDIO_SOUND_EFFECT_USE_SHOT] = (app_audio_dma_config_s){ \
+            .hw = cpuss_0_dw1_0_chan_3_HW, \
+            .ch = cpuss_0_dw1_0_chan_3_CHANNEL \
+        }, \
+        [AUDIO_SOUND_EFFECT_BOOST] = (app_audio_dma_config_s){ \
+            .hw = cpuss_0_dw1_0_chan_4_HW, \
+            .ch = cpuss_0_dw1_0_chan_4_CHANNEL \
+        }, \
+        [AUDIO_SOUND_EFFECT_HIT] = (app_audio_dma_config_s){ \
+            .hw = cpuss_0_dw1_0_chan_5_HW, \
+            .ch = cpuss_0_dw1_0_chan_5_CHANNEL \
+        }, \
+        [AUDIO_SOUND_EFFECT_MAX] = (app_audio_dma_config_s){ \
+            .hw = cpuss_0_dw1_0_chan_0_HW, \
+            .ch = cpuss_0_dw1_0_chan_0_CHANNEL \
+        } \
+    }
+
+#define DMA_DESCRIPTOR_BATCH_10(M, C, D_PREFIX, ...) \
+    M(C, D_PREFIX##0 __VA_OPT__(,) __VA_ARGS__) \
+    M(C, D_PREFIX##1 __VA_OPT__(,) __VA_ARGS__) \
+    M(C, D_PREFIX##2 __VA_OPT__(,) __VA_ARGS__) \
+    M(C, D_PREFIX##3 __VA_OPT__(,) __VA_ARGS__) \
+    M(C, D_PREFIX##4 __VA_OPT__(,) __VA_ARGS__) \
+    M(C, D_PREFIX##5 __VA_OPT__(,) __VA_ARGS__) \
+    M(C, D_PREFIX##6 __VA_OPT__(,) __VA_ARGS__) \
+    M(C, D_PREFIX##7 __VA_OPT__(,) __VA_ARGS__) \
+    M(C, D_PREFIX##8 __VA_OPT__(,) __VA_ARGS__) \
+    M(C, D_PREFIX##9 __VA_OPT__(,) __VA_ARGS__)
+
+
+#define DMA_DESCRIPTOR_INIT(C, D) \
+    dma_init_status = Cy_DMA_Descriptor_Init( \
+        &cpuss_0_dw1_0_chan_ ## C ## _Descriptor_ ## D, \
+        &cpuss_0_dw1_0_chan_ ## C ## _Descriptor_ ## D ## _config \
+    ); \
+    if (CY_DMA_SUCCESS != dma_init_status) \
+    { \
+        CY_ASSERT(0); \
+    }
+
+#define DMA_DESCRIPTOR_INIT_BATCH_10(C, D_PREFIX)    DMA_DESCRIPTOR_BATCH_10(DMA_DESCRIPTOR_INIT, C, D_PREFIX)
+
+#define DMA_CHANNEL_INIT(C) \
+    dma_init_status = Cy_DMA_Channel_Init( \
+        cpuss_0_dw1_0_chan_ ## C ## _HW, \
+        cpuss_0_dw1_0_chan_ ## C ## _CHANNEL, \
+        &cpuss_0_dw1_0_chan_ ## C ## _channelConfig \
+    ); \
+    if (CY_DMA_SUCCESS != dma_init_status) \
+    { \
+        CY_ASSERT(0); \
+    }
+
+#define DMA_SET_SRC_DST_ADDRESSES(C, D, LUT_IDX) \
+    Cy_DMA_Descriptor_SetSrcAddress( \
+        &cpuss_0_dw1_0_chan_ ## C ## _Descriptor_ ## D, \
+        DMA_DESCRIPTOR_SRC_OFFSET(uint32_t, audio_sample_luts[LUT_IDX], D) \
+    ); \
+    Cy_DMA_Descriptor_SetDstAddress( \
+        &cpuss_0_dw1_0_chan_ ## C ## _Descriptor_ ## D, \
+        (uint32_t*) &(pass_0_ctdac_0_HW->CTDAC_VAL_NXT) \
+    );
+
+#define DMA_SET_SRC_DST_ADDRESSES_BATCH_10(C, D_PREFIX, LUT_IDX)    DMA_DESCRIPTOR_BATCH_10(DMA_SET_SRC_DST_ADDRESSES, C, D_PREFIX, LUT_IDX)
+
+
+/******************************************************************************/
 /* Global Variables                                                           */
 /******************************************************************************/
 // Lookup table for a sine wave in unsigned format
@@ -50,6 +144,7 @@ uint32_t soundByteSamplesLUT[N_TUNE_SAMPLES] = {0x73f,0x73f,0x73f,0x741,0x73f,0x
 /*******************************************************************************
  * Function Prototypes
  ********************************************************************************/
+static inline void app_audio_disable_reconfigure_and_enable_dma(audio_sound_effect_e sound_effect, uint32_t sample_rate);
 static void app_audio_vdac_init(void);
 static void app_audio_dma_init(void);
 
@@ -58,10 +153,45 @@ static void app_audio_dma_init(void);
  * Function Definitions
  *******************************************************************************/
 /**
+ * @brief  Disable all DMA channels that do not correspond to the provided sound effect
+ * 
+ * @param audio_sound_effect_e
+ * Sound effect to not disable. AUDIO_SOUND_EFFECT_MAX can be provided to not disable
+ * the DMA channel for playing tones
+ */
+static inline void app_audio_disable_reconfigure_and_enable_dma(audio_sound_effect_e sound_effect, uint32_t sample_rate)
+{
+    for (audio_sound_effect_e sfx = 0; sfx <= AUDIO_SOUND_EFFECT_MAX; sfx++)
+    {
+        if (sound_effect != sfx)
+        {
+            const app_audio_dma_config_s dma_cfg = SOUND_EFFECT_DMA_INFO[sfx];
+            Cy_DMA_Disable(dma_cfg.hw);
+            Cy_DMA_Channel_Disable(dma_cfg.hw, dma_cfg.ch);
+        }
+    }
+
+    // Set divider so that the sound effect is replayed at the sample rate used to
+    // process the original audio file (or to acheive the sine wave frequency)
+    uint32_t divider = SAMPLE_RATE_TO_PCLK_24_5_DIV(sample_rate);
+    (void)Cy_SysClk_PeriphDisableDivider(peri_0_div_24_5_0_HW, peri_0_div_24_5_0_NUM);
+    (void)Cy_SysClk_PeriphSetFracDivider(peri_0_div_24_5_0_HW, peri_0_div_24_5_0_NUM, divider, 0U); // TODO Fractional part of divider
+    (void)Cy_SysClk_PeriphEnableDivider(peri_0_div_24_5_0_HW, peri_0_div_24_5_0_NUM);
+
+    // Enable the descriptors for the sound effect
+    const app_audio_dma_config_s dma_cfg = SOUND_EFFECT_DMA_INFO[sound_effect];
+    Cy_DMA_Channel_Enable(dma_cfg.hw, dma_cfg.ch);
+    Cy_DMA_Enable(dma_cfg.hw);
+}
+
+
+/**
  * @brief  Play a tone on the speaker
  * 
- * @param param
- * Unused
+ * @param uint32_t
+ * Amplitude of sine wave to play
+ * @param uint32_t
+ * Frequency of sine wave to play
  */
 void app_audio_play_tone(uint32_t amplitude, uint32_t frequency)
 {
@@ -72,42 +202,21 @@ void app_audio_play_tone(uint32_t amplitude, uint32_t frequency)
         transformedSineWaveLUT[i] = ((amplitude * rawSineWaveLUT[i]) / amp_range);
     }
 
-    // Disable the descriptors for the tune
-    Cy_DMA_Disable(cpuss_0_dw1_0_chan_1_HW);
-    Cy_DMA_Channel_Disable(cpuss_0_dw1_0_chan_1_HW, cpuss_0_dw1_0_chan_1_CHANNEL);
-
-    // Update frequency
-    uint32_t divider = (1000000 / frequency) - 1;
-    (void)Cy_SysClk_PeriphDisableDivider(peri_0_div_24_5_0_HW, peri_0_div_24_5_0_NUM);
-    (void)Cy_SysClk_PeriphSetFracDivider(peri_0_div_24_5_0_HW, peri_0_div_24_5_0_NUM, divider, 0U);
-    (void)Cy_SysClk_PeriphEnableDivider(peri_0_div_24_5_0_HW, peri_0_div_24_5_0_NUM);
-
-    // Enable the descriptor for the tone
-    Cy_DMA_Channel_Enable(cpuss_0_dw1_0_chan_0_HW, cpuss_0_dw1_0_chan_0_CHANNEL);
-    Cy_DMA_Enable(cpuss_0_dw1_0_chan_0_HW);
+    // Disable the descriptors for all tunes
+    app_audio_disable_reconfigure_and_enable_dma(AUDIO_SOUND_EFFECT_MAX, 100 * frequency);
 }
 
 
 /**
- * @brief  Play a tune on the speaker
+ * @brief  Play a sound effect on the speaker
  * 
- * @param param
- * Unused
+ * @param audio_sound_effect_e
+ * Sound effect to play
  */
-void app_audio_play_tune(void) // TODO Add a parameter to choose the tune (need to configure divider and probably some chaining/sample count parameters in the DMA channel)
+void app_audio_play_sound_effect(audio_sound_effect_e sound_effect)
 {
-    // Disable the descriptor for the tone
-    Cy_DMA_Disable(cpuss_0_dw1_0_chan_0_HW);
-    Cy_DMA_Channel_Disable(cpuss_0_dw1_0_chan_0_HW, cpuss_0_dw1_0_chan_0_CHANNEL);
-
-    // Set divider so that the tune is replayed at the sample rate used to process the original audio file ((max_clock_rate_hz / sample_rate_hz) - 1)
-    (void)Cy_SysClk_PeriphDisableDivider(peri_0_div_24_5_0_HW, peri_0_div_24_5_0_NUM);
-    (void)Cy_SysClk_PeriphSetFracDivider(peri_0_div_24_5_0_HW, peri_0_div_24_5_0_NUM, 9999U, 0U);
-    (void)Cy_SysClk_PeriphEnableDivider(peri_0_div_24_5_0_HW, peri_0_div_24_5_0_NUM);
-
-    // Enable the descriptors for the tune
-    Cy_DMA_Channel_Enable(cpuss_0_dw1_0_chan_1_HW, cpuss_0_dw1_0_chan_1_CHANNEL);
-    Cy_DMA_Enable(cpuss_0_dw1_0_chan_1_HW);
+    // Disable all descriptors that aren't used for the specified sound effect
+    app_audio_disable_reconfigure_and_enable_dma(sound_effect, audio_sample_rates[sound_effect]);
 }
 
 
@@ -153,127 +262,164 @@ static void app_audio_dma_init(void)
 {
     cy_en_dma_status_t dma_init_status;
 
-    // Initialize descriptors and channel
-    dma_init_status = Cy_DMA_Descriptor_Init(
-        &cpuss_0_dw1_0_chan_1_Descriptor_0,
-        &cpuss_0_dw1_0_chan_1_Descriptor_0_config
-    );
-    if (CY_DMA_SUCCESS != dma_init_status )
-    {
-        CY_ASSERT(0);
-    }
-    dma_init_status = Cy_DMA_Descriptor_Init(
-        &cpuss_0_dw1_0_chan_1_Descriptor_1,
-        &cpuss_0_dw1_0_chan_1_Descriptor_1_config
-    );
-    if (CY_DMA_SUCCESS != dma_init_status )
-    {
-        CY_ASSERT(0);
-    }
-    dma_init_status = Cy_DMA_Descriptor_Init(
-        &cpuss_0_dw1_0_chan_1_Descriptor_2,
-        &cpuss_0_dw1_0_chan_1_Descriptor_2_config
-    );
-    if (CY_DMA_SUCCESS != dma_init_status )
-    {
-        CY_ASSERT(0);
-    }
-    dma_init_status = Cy_DMA_Descriptor_Init(
-        &cpuss_0_dw1_0_chan_1_Descriptor_3,
-        &cpuss_0_dw1_0_chan_1_Descriptor_3_config
-    );
-    if (CY_DMA_SUCCESS != dma_init_status )
-    {
-        CY_ASSERT(0);
-    }
-    dma_init_status = Cy_DMA_Descriptor_Init(
-        &cpuss_0_dw1_0_chan_1_Descriptor_4,
-        &cpuss_0_dw1_0_chan_1_Descriptor_4_config
-    );
-    if (CY_DMA_SUCCESS != dma_init_status )
-    {
-        CY_ASSERT(0);
-    }
-    dma_init_status = Cy_DMA_Descriptor_Init(
-        &cpuss_0_dw1_0_chan_1_Descriptor_5,
-        &cpuss_0_dw1_0_chan_1_Descriptor_5_config
-    );
-    if (CY_DMA_SUCCESS != dma_init_status )
-    {
-        CY_ASSERT(0);
-    }
-    dma_init_status = Cy_DMA_Descriptor_Init(
-        &cpuss_0_dw1_0_chan_1_Descriptor_6,
-        &cpuss_0_dw1_0_chan_1_Descriptor_6_config
-    );
-    if (CY_DMA_SUCCESS != dma_init_status )
-    {
-        CY_ASSERT(0);
-    }
-    dma_init_status = Cy_DMA_Descriptor_Init(
-        &cpuss_0_dw1_0_chan_1_Descriptor_7,
-        &cpuss_0_dw1_0_chan_1_Descriptor_7_config
-    );
-    if (CY_DMA_SUCCESS != dma_init_status )
-    {
-        CY_ASSERT(0);
-    }
-    dma_init_status = Cy_DMA_Descriptor_Init(
-        &cpuss_0_dw1_0_chan_1_Descriptor_8,
-        &cpuss_0_dw1_0_chan_1_Descriptor_8_config
-    );
-    if (CY_DMA_SUCCESS != dma_init_status )
-    {
-        CY_ASSERT(0);
-    }
-    dma_init_status = Cy_DMA_Channel_Init(
-        cpuss_0_dw1_0_chan_1_HW,
-        cpuss_0_dw1_0_chan_1_CHANNEL,
-        &cpuss_0_dw1_0_chan_1_channelConfig
-    );
-    if (CY_DMA_SUCCESS != dma_init_status )
-    {
-        CY_ASSERT(0);
-    }
+    // -----------------------------------------------------------------------------------------------------
+    // Initialize DMA channels/descriptors
+    // -----------------------------------------------------------------------------------------------------
+    // Channel 1
+    DMA_DESCRIPTOR_INIT_BATCH_10(1,)
+    DMA_DESCRIPTOR_INIT_BATCH_10(1, 1)
+    DMA_DESCRIPTOR_INIT_BATCH_10(1, 2)
+    DMA_DESCRIPTOR_INIT_BATCH_10(1, 3)
+    DMA_DESCRIPTOR_INIT_BATCH_10(1, 4)
+    DMA_DESCRIPTOR_INIT_BATCH_10(1, 5)
+    DMA_DESCRIPTOR_INIT_BATCH_10(1, 6)
+    DMA_DESCRIPTOR_INIT_BATCH_10(1, 7)
+    DMA_DESCRIPTOR_INIT(1, 80)
+    DMA_DESCRIPTOR_INIT(1, 81)
+    DMA_DESCRIPTOR_INIT(1, 82)
+    DMA_CHANNEL_INIT(1)
+    // Channel 2
+    DMA_DESCRIPTOR_INIT_BATCH_10(2,)
+    DMA_DESCRIPTOR_INIT_BATCH_10(2, 1)
+    DMA_DESCRIPTOR_INIT_BATCH_10(2, 2)
+    DMA_DESCRIPTOR_INIT_BATCH_10(2, 3)
+    DMA_DESCRIPTOR_INIT_BATCH_10(2, 4)
+    DMA_DESCRIPTOR_INIT_BATCH_10(2, 5)
+    DMA_DESCRIPTOR_INIT(2, 60)
+    DMA_DESCRIPTOR_INIT(2, 61)
+    DMA_DESCRIPTOR_INIT(2, 62)
+    DMA_DESCRIPTOR_INIT(2, 63)
+    DMA_CHANNEL_INIT(2)
+    // Channel 3
+    DMA_DESCRIPTOR_INIT_BATCH_10(3,)
+    DMA_DESCRIPTOR_INIT_BATCH_10(3, 1)
+    DMA_DESCRIPTOR_INIT_BATCH_10(3, 2)
+    DMA_DESCRIPTOR_INIT_BATCH_10(3, 3)
+    DMA_DESCRIPTOR_INIT_BATCH_10(3, 4)
+    DMA_DESCRIPTOR_INIT(3, 50)
+    DMA_DESCRIPTOR_INIT(3, 51)
+    DMA_DESCRIPTOR_INIT(3, 52)
+    DMA_DESCRIPTOR_INIT(3, 53)
+    DMA_DESCRIPTOR_INIT(3, 54)
+    DMA_DESCRIPTOR_INIT(3, 55)
+    DMA_DESCRIPTOR_INIT(3, 56)
+    DMA_DESCRIPTOR_INIT(3, 57)
+    DMA_CHANNEL_INIT(3)
+    // Channel 4
+    DMA_DESCRIPTOR_INIT_BATCH_10(4,)
+    DMA_DESCRIPTOR_INIT_BATCH_10(4, 1)
+    DMA_DESCRIPTOR_INIT_BATCH_10(4, 2)
+    DMA_DESCRIPTOR_INIT_BATCH_10(4, 3)
+    DMA_DESCRIPTOR_INIT_BATCH_10(4, 4)
+    DMA_DESCRIPTOR_INIT_BATCH_10(4, 5)
+    DMA_DESCRIPTOR_INIT_BATCH_10(4, 6)
+    DMA_DESCRIPTOR_INIT_BATCH_10(4, 7)
+    DMA_DESCRIPTOR_INIT_BATCH_10(4, 8)
+    DMA_DESCRIPTOR_INIT_BATCH_10(4, 9)
+    DMA_DESCRIPTOR_INIT_BATCH_10(4, 10)
+    DMA_DESCRIPTOR_INIT_BATCH_10(4, 11)
+    DMA_DESCRIPTOR_INIT(4, 120)
+    DMA_DESCRIPTOR_INIT(4, 121)
+    DMA_DESCRIPTOR_INIT(4, 122)
+    DMA_DESCRIPTOR_INIT(4, 123)
+    DMA_DESCRIPTOR_INIT(4, 124)
+    DMA_DESCRIPTOR_INIT(4, 125)
+    DMA_DESCRIPTOR_INIT(4, 126)
+    DMA_CHANNEL_INIT(4)
+    // Channel 5
+    DMA_DESCRIPTOR_INIT_BATCH_10(5,)
+    DMA_DESCRIPTOR_INIT_BATCH_10(5, 1)
+    DMA_DESCRIPTOR_INIT_BATCH_10(5, 2)
+    DMA_DESCRIPTOR_INIT_BATCH_10(5, 3)
+    DMA_DESCRIPTOR_INIT_BATCH_10(5, 4)
+    DMA_DESCRIPTOR_INIT_BATCH_10(5, 5)
+    DMA_DESCRIPTOR_INIT_BATCH_10(5, 6)
+    DMA_DESCRIPTOR_INIT(5, 70)
+    DMA_DESCRIPTOR_INIT(5, 71)
+    DMA_DESCRIPTOR_INIT(5, 72)
+    DMA_DESCRIPTOR_INIT(5, 73)
+    DMA_DESCRIPTOR_INIT(5, 74)
+    DMA_DESCRIPTOR_INIT(5, 75)
+    DMA_DESCRIPTOR_INIT(5, 76)
+    DMA_DESCRIPTOR_INIT(5, 77)
+    DMA_CHANNEL_INIT(5)
 
-    // Set source addresses in the sample LUT for descriptors 0-8 to step through the samples sequentially
-    Cy_DMA_Descriptor_SetSrcAddress(&cpuss_0_dw1_0_chan_1_Descriptor_0,
-                                    DMA_DESCRIPTOR_SRC_OFFSET(uint32_t, soundByteSamplesLUT, 0));
-    Cy_DMA_Descriptor_SetSrcAddress(&cpuss_0_dw1_0_chan_1_Descriptor_1,
-                                    DMA_DESCRIPTOR_SRC_OFFSET(uint32_t, soundByteSamplesLUT, 1));
-    Cy_DMA_Descriptor_SetSrcAddress(&cpuss_0_dw1_0_chan_1_Descriptor_2,
-                                    DMA_DESCRIPTOR_SRC_OFFSET(uint32_t, soundByteSamplesLUT, 2));
-    Cy_DMA_Descriptor_SetSrcAddress(&cpuss_0_dw1_0_chan_1_Descriptor_3,
-                                    DMA_DESCRIPTOR_SRC_OFFSET(uint32_t, soundByteSamplesLUT, 3));
-    Cy_DMA_Descriptor_SetSrcAddress(&cpuss_0_dw1_0_chan_1_Descriptor_4,
-                                    DMA_DESCRIPTOR_SRC_OFFSET(uint32_t, soundByteSamplesLUT, 4));
-    Cy_DMA_Descriptor_SetSrcAddress(&cpuss_0_dw1_0_chan_1_Descriptor_5,
-                                    DMA_DESCRIPTOR_SRC_OFFSET(uint32_t, soundByteSamplesLUT, 5));
-    Cy_DMA_Descriptor_SetSrcAddress(&cpuss_0_dw1_0_chan_1_Descriptor_6,
-                                    DMA_DESCRIPTOR_SRC_OFFSET(uint32_t, soundByteSamplesLUT, 6));
-    Cy_DMA_Descriptor_SetSrcAddress(&cpuss_0_dw1_0_chan_1_Descriptor_7,
-                                    DMA_DESCRIPTOR_SRC_OFFSET(uint32_t, soundByteSamplesLUT, 7));
-    Cy_DMA_Descriptor_SetSrcAddress(&cpuss_0_dw1_0_chan_1_Descriptor_8,
-                                    DMA_DESCRIPTOR_SRC_OFFSET(uint32_t, soundByteSamplesLUT, 8));
-    // Set destination addresses as the CTDAC buffer register
-    Cy_DMA_Descriptor_SetDstAddress(&cpuss_0_dw1_0_chan_1_Descriptor_0,
-                                    (uint32_t*) &(pass_0_ctdac_0_HW->CTDAC_VAL_NXT));
-    Cy_DMA_Descriptor_SetDstAddress(&cpuss_0_dw1_0_chan_1_Descriptor_1,
-                                    (uint32_t*) &(pass_0_ctdac_0_HW->CTDAC_VAL_NXT));
-    Cy_DMA_Descriptor_SetDstAddress(&cpuss_0_dw1_0_chan_1_Descriptor_2,
-                                    (uint32_t*) &(pass_0_ctdac_0_HW->CTDAC_VAL_NXT));
-    Cy_DMA_Descriptor_SetDstAddress(&cpuss_0_dw1_0_chan_1_Descriptor_3,
-                                    (uint32_t*) &(pass_0_ctdac_0_HW->CTDAC_VAL_NXT));
-    Cy_DMA_Descriptor_SetDstAddress(&cpuss_0_dw1_0_chan_1_Descriptor_4,
-                                    (uint32_t*) &(pass_0_ctdac_0_HW->CTDAC_VAL_NXT));
-    Cy_DMA_Descriptor_SetDstAddress(&cpuss_0_dw1_0_chan_1_Descriptor_5,
-                                    (uint32_t*) &(pass_0_ctdac_0_HW->CTDAC_VAL_NXT));
-    Cy_DMA_Descriptor_SetDstAddress(&cpuss_0_dw1_0_chan_1_Descriptor_6,
-                                    (uint32_t*) &(pass_0_ctdac_0_HW->CTDAC_VAL_NXT));
-    Cy_DMA_Descriptor_SetDstAddress(&cpuss_0_dw1_0_chan_1_Descriptor_7,
-                                    (uint32_t*) &(pass_0_ctdac_0_HW->CTDAC_VAL_NXT));
-    Cy_DMA_Descriptor_SetDstAddress(&cpuss_0_dw1_0_chan_1_Descriptor_8,
-                                    (uint32_t*) &(pass_0_ctdac_0_HW->CTDAC_VAL_NXT));
+    // -----------------------------------------------------------------------------------------------------
+    // Set source and destination addresses to step through sample LUTs sequentially
+    // -----------------------------------------------------------------------------------------------------
+    // Channel 1
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(1,  , AUDIO_SOUND_EFFECT_GET_ITEM)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(1, 1, AUDIO_SOUND_EFFECT_GET_ITEM)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(1, 2, AUDIO_SOUND_EFFECT_GET_ITEM)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(1, 3, AUDIO_SOUND_EFFECT_GET_ITEM)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(1, 4, AUDIO_SOUND_EFFECT_GET_ITEM)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(1, 5, AUDIO_SOUND_EFFECT_GET_ITEM)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(1, 6, AUDIO_SOUND_EFFECT_GET_ITEM)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(1, 7, AUDIO_SOUND_EFFECT_GET_ITEM)
+    DMA_SET_SRC_DST_ADDRESSES(1, 80, AUDIO_SOUND_EFFECT_GET_ITEM)
+    DMA_SET_SRC_DST_ADDRESSES(1, 81, AUDIO_SOUND_EFFECT_GET_ITEM)
+    DMA_SET_SRC_DST_ADDRESSES(1, 82, AUDIO_SOUND_EFFECT_GET_ITEM)
+    // Channel 2
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(2,  , AUDIO_SOUND_EFFECT_USE_SHIELD)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(2, 1, AUDIO_SOUND_EFFECT_USE_SHIELD)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(2, 2, AUDIO_SOUND_EFFECT_USE_SHIELD)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(2, 3, AUDIO_SOUND_EFFECT_USE_SHIELD)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(2, 4, AUDIO_SOUND_EFFECT_USE_SHIELD)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(2, 5, AUDIO_SOUND_EFFECT_USE_SHIELD)
+    DMA_SET_SRC_DST_ADDRESSES(2, 60, AUDIO_SOUND_EFFECT_USE_SHIELD)
+    DMA_SET_SRC_DST_ADDRESSES(2, 61, AUDIO_SOUND_EFFECT_USE_SHIELD)
+    DMA_SET_SRC_DST_ADDRESSES(2, 62, AUDIO_SOUND_EFFECT_USE_SHIELD)
+    DMA_SET_SRC_DST_ADDRESSES(2, 63, AUDIO_SOUND_EFFECT_USE_SHIELD)
+    // Channel 3
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(3,  , AUDIO_SOUND_EFFECT_USE_SHOT)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(3, 1, AUDIO_SOUND_EFFECT_USE_SHOT)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(3, 2, AUDIO_SOUND_EFFECT_USE_SHOT)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(3, 3, AUDIO_SOUND_EFFECT_USE_SHOT)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(3, 4, AUDIO_SOUND_EFFECT_USE_SHOT)
+    DMA_SET_SRC_DST_ADDRESSES(3, 50, AUDIO_SOUND_EFFECT_USE_SHOT)
+    DMA_SET_SRC_DST_ADDRESSES(3, 51, AUDIO_SOUND_EFFECT_USE_SHOT)
+    DMA_SET_SRC_DST_ADDRESSES(3, 52, AUDIO_SOUND_EFFECT_USE_SHOT)
+    DMA_SET_SRC_DST_ADDRESSES(3, 53, AUDIO_SOUND_EFFECT_USE_SHOT)
+    DMA_SET_SRC_DST_ADDRESSES(3, 54, AUDIO_SOUND_EFFECT_USE_SHOT)
+    DMA_SET_SRC_DST_ADDRESSES(3, 55, AUDIO_SOUND_EFFECT_USE_SHOT)
+    DMA_SET_SRC_DST_ADDRESSES(3, 56, AUDIO_SOUND_EFFECT_USE_SHOT)
+    DMA_SET_SRC_DST_ADDRESSES(3, 57, AUDIO_SOUND_EFFECT_USE_SHOT)
+    // Channel 4
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(4,   , AUDIO_SOUND_EFFECT_BOOST)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(4,  1, AUDIO_SOUND_EFFECT_BOOST)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(4,  2, AUDIO_SOUND_EFFECT_BOOST)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(4,  3, AUDIO_SOUND_EFFECT_BOOST)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(4,  4, AUDIO_SOUND_EFFECT_BOOST)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(4,  5, AUDIO_SOUND_EFFECT_BOOST)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(4,  6, AUDIO_SOUND_EFFECT_BOOST)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(4,  7, AUDIO_SOUND_EFFECT_BOOST)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(4,  8, AUDIO_SOUND_EFFECT_BOOST)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(4,  9, AUDIO_SOUND_EFFECT_BOOST)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(4, 10, AUDIO_SOUND_EFFECT_BOOST)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(4, 11, AUDIO_SOUND_EFFECT_BOOST)
+    DMA_SET_SRC_DST_ADDRESSES(4, 120, AUDIO_SOUND_EFFECT_BOOST)
+    DMA_SET_SRC_DST_ADDRESSES(4, 121, AUDIO_SOUND_EFFECT_BOOST)
+    DMA_SET_SRC_DST_ADDRESSES(4, 122, AUDIO_SOUND_EFFECT_BOOST)
+    DMA_SET_SRC_DST_ADDRESSES(4, 123, AUDIO_SOUND_EFFECT_BOOST)
+    DMA_SET_SRC_DST_ADDRESSES(4, 124, AUDIO_SOUND_EFFECT_BOOST)
+    DMA_SET_SRC_DST_ADDRESSES(4, 125, AUDIO_SOUND_EFFECT_BOOST)
+    DMA_SET_SRC_DST_ADDRESSES(4, 126, AUDIO_SOUND_EFFECT_BOOST)
+    // Channel 5
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(5,  , AUDIO_SOUND_EFFECT_HIT)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(5, 1, AUDIO_SOUND_EFFECT_HIT)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(5, 2, AUDIO_SOUND_EFFECT_HIT)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(5, 3, AUDIO_SOUND_EFFECT_HIT)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(5, 4, AUDIO_SOUND_EFFECT_HIT)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(5, 5, AUDIO_SOUND_EFFECT_HIT)
+    DMA_SET_SRC_DST_ADDRESSES_BATCH_10(5, 6, AUDIO_SOUND_EFFECT_HIT)
+    DMA_SET_SRC_DST_ADDRESSES(5, 70, AUDIO_SOUND_EFFECT_HIT)
+    DMA_SET_SRC_DST_ADDRESSES(5, 71, AUDIO_SOUND_EFFECT_HIT)
+    DMA_SET_SRC_DST_ADDRESSES(5, 72, AUDIO_SOUND_EFFECT_HIT)
+    DMA_SET_SRC_DST_ADDRESSES(5, 73, AUDIO_SOUND_EFFECT_HIT)
+    DMA_SET_SRC_DST_ADDRESSES(5, 74, AUDIO_SOUND_EFFECT_HIT)
+    DMA_SET_SRC_DST_ADDRESSES(5, 75, AUDIO_SOUND_EFFECT_HIT)
+    DMA_SET_SRC_DST_ADDRESSES(5, 76, AUDIO_SOUND_EFFECT_HIT)
+    DMA_SET_SRC_DST_ADDRESSES(5, 77, AUDIO_SOUND_EFFECT_HIT)
 
     // Initialize descriptor and channel
     dma_init_status = Cy_DMA_Descriptor_Init(&cpuss_0_dw1_0_chan_0_Descriptor_0,
@@ -292,8 +438,7 @@ static void app_audio_dma_init(void)
 
     // Set source address as the LUT for descriptor 0
     Cy_DMA_Descriptor_SetSrcAddress(&cpuss_0_dw1_0_chan_0_Descriptor_0,
-                                    (uint32_t*) transformedSineWaveLUT); // TODO
-                                    // TODO (uint32_t*) sineWaveLUT);
+                                    (uint32_t*) transformedSineWaveLUT);
     // Set destination address as the CTDAC buffer register
     Cy_DMA_Descriptor_SetDstAddress(&cpuss_0_dw1_0_chan_0_Descriptor_0,
                                     (uint32_t*) &(pass_0_ctdac_0_HW->CTDAC_VAL_NXT));
@@ -309,7 +454,7 @@ void app_audio_init(void)
     // Initialize and start the CTDAC
     app_audio_vdac_init();
     // Initialize and start the DMA
-    app_audio_dma_init(); // TODO transformedSineWaveLUT); // TODO , (uint32_t*) &(pass_0_ctdac_0_HW->CTDAC_VAL_NXT));
+    app_audio_dma_init();
 }
 
 /* [] END OF FILE */

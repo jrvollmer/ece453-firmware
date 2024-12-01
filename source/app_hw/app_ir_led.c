@@ -29,7 +29,9 @@ static void app_ir_led_tcpwm_init(void);
 static uint8_t n_active_timers = 0;
 static TimerHandle_t ir_led_timers[CAR_ITEM_MAX];
 static const uint32_t item_delays_ms[CAR_ITEM_MAX] = {
-    [CAR_GREEN_SHELL] = 1000,
+    [CAR_ITEM_SHOT]   = 1000,
+    [CAR_ITEM_SHIELD] = 0,
+    [CAR_ITEM_BOOST]  = 0,
 };
 
 
@@ -71,6 +73,8 @@ BaseType_t app_ir_led_use_item(car_item_t item)
         {
             // Pulse the IR LED at 38kHz
             Cy_TCPWM_TriggerStart(TCPWM0, tcpwm_0_cnt_5_MASK);
+
+            // TODO TODO Just use vTaskDelay(pdMS_TO_TICKS(item_delays_ms[item])); in task_ir_led and then call app_ir_led_start/stop_ir_led
 
             xTimerStart(ir_led_timers[item], 0);
             n_active_timers++;

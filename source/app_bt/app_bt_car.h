@@ -37,8 +37,10 @@ typedef float32_t car_joystick_t;
 typedef enum
 {
     CAR_ITEM_MIN    = 0,
-    CAR_GREEN_SHELL = 1, // TODO "mushrooms", "coins", "stars", etc.
-    CAR_ITEM_MAX    = 2
+    CAR_ITEM_SHOT   = 1,
+    CAR_ITEM_SHIELD = 2,
+    CAR_ITEM_BOOST  = 3,
+    CAR_ITEM_MAX    = 4
 } car_item_e;
 
 typedef enum

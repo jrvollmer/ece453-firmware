@@ -17,6 +17,7 @@
 #include "app_bt_event_handler.h"
 #include "task_ir_led.h"
 #include "task_audio.h"
+#include "data/audio_sample_luts.h"
 #include <task.h>
 #include <stdlib.h>
 
@@ -27,9 +28,11 @@
 // Item types, to be sent to the RC controller app
 typedef enum
 {
-    BLE_GREEN_SHELL   = 0,
-    BLE_GREEN_SHELL_3 = 1,
-    BLE_ITEM_MAX      = 2
+    BLE_ITEM_SHOT   = 0,
+    BLE_ITEM_SHOT_3 = 1,
+    BLE_ITEM_SHIELD = 2,
+    BLE_ITEM_BOOST  = 3,
+    BLE_ITEM_MAX    = 4
 } ble_item_e;
 
 
@@ -71,7 +74,7 @@ BaseType_t app_bt_car_get_new_item(void)
         app_rc_controller_get_item[0] = (car_item_t)item;
         app_bt_send_message(HDLC_RC_CONTROLLER_GET_ITEM_VALUE);
 
-        ret = pdTRUE;
+        ret = xTaskNotify(xTaskAudioHandle, (uint32_t)AUDIO_SOUND_EFFECT_GET_ITEM, eSetValueWithOverwrite);
     }
 
     return ret;
@@ -97,11 +100,24 @@ BaseType_t app_bt_car_use_item(car_item_t item)
     }
     else if ((race_state == RACE_STATE_ACTIVE) && (item > CAR_ITEM_MIN) && (item < CAR_ITEM_MAX))
     {
-        ret = pdTRUE;
-
-        // Start IR LED and speaker, sending item with notifications
-        ret &= xTaskNotify(xTaskIrLedHandle, (uint32_t)item, eSetValueWithOverwrite);
-        ret &= xTaskNotify(xTaskAudioHandle, (uint32_t)item, eSetValueWithOverwrite);
+        // Start speaker and possibly IR LED, sending item/sound effect with notifications
+        switch (item)
+        {
+            case CAR_ITEM_SHOT:
+                ret = xTaskNotify(xTaskIrLedHandle, (uint32_t)item, eSetValueWithOverwrite);
+                ret &= xTaskNotify(xTaskAudioHandle, (uint32_t)AUDIO_SOUND_EFFECT_USE_SHOT, eSetValueWithOverwrite);
+                break;
+            case CAR_ITEM_SHIELD:
+                // TODO Protect against hits
+                ret = xTaskNotify(xTaskAudioHandle, (uint32_t)AUDIO_SOUND_EFFECT_USE_SHIELD, eSetValueWithOverwrite);
+                break;
+            case CAR_ITEM_BOOST:
+                // TODO Increase speed
+                ret = xTaskNotify(xTaskAudioHandle, (uint32_t)AUDIO_SOUND_EFFECT_BOOST, eSetValueWithOverwrite);
+                break;
+            default:
+                break;
+        }
     }
 
     return ret;

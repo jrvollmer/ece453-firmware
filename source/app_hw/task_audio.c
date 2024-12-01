@@ -12,6 +12,7 @@
 #include "task_audio.h"
 #include "app_bt_car.h"
 #include "app_audio.h"
+#include "data/audio_sample_luts.h"
 #include "cy_pdl.h"
 #include "cybsp.h"
 
@@ -27,7 +28,7 @@ static BaseType_t cli_handler_audio_play_tone(
     size_t xWriteBufferLen,
     const char *pcCommandString
 );
-static BaseType_t cli_handler_audio_play_tune(
+static BaseType_t cli_handler_audio_play_sound_effect(
     char *pcWriteBuffer,
     size_t xWriteBufferLen,
     const char *pcCommandString
@@ -53,12 +54,12 @@ static const CLI_Command_Definition_t xAudioPlayTone =
 };
 
 // The CLI command definition for the audio play tune command
-static const CLI_Command_Definition_t xAudioPlayTune =
+static const CLI_Command_Definition_t xAudioPlaySoundEffect =
 {
-    "play_tune",                       // Command text
-    "\r\nplay_tune\r\n",               // Command help text
-    cli_handler_audio_play_tune,       // The function to run
-    0                                  // The user can enter 0 parameters
+    "play_sound_effect",                       // Command text
+    "\r\nplay_sound_effect < idx >\r\n",       // Command help text
+    cli_handler_audio_play_sound_effect,       // The function to run
+    1                                          // The user can enter 1 parameter
 };
 
 
@@ -76,14 +77,28 @@ static void task_audio_car(void *param)
     // Suppress warning for unused parameter
     (void)param;
 
+    uint16_t task_delay_ms = 0;
+
+    for (audio_sound_effect_e i = 0; i < AUDIO_SOUND_EFFECT_MAX; i++)
+    {
+        const uint16_t delay_ms = (audio_sample_sizes[i] * 1000) / audio_sample_rates[i];
+        if (delay_ms > task_delay_ms)
+        {
+            task_delay_ms = delay_ms;
+        }
+    }
+
     // Repeatedly running part of the task
     for (;;)
     {
-        // Wait to be notified, getting the item to use
-        const car_item_t item = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        // Wait to be notified, getting the sound effect to play
+        const audio_sound_effect_e sound_effect = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
-        task_print_info("Playing tune"); // TODO REMOVE
-        app_audio_play_tune(); // TODO specify item
+        task_print_info("Playing sound effect %u", sound_effect); // TODO REMOVE
+        app_audio_play_sound_effect(sound_effect);
+
+        // Delay while we're playing the tone
+        vTaskDelay(pdMS_TO_TICKS(task_delay_ms));
     }
 }
 
@@ -114,9 +129,9 @@ static void task_audio_cli(void *param)
                 app_audio_play_tone(audio_pkt.amplitude, audio_pkt.frequency);
                 break;
 
-            case AUDIO_PLAY_TUNE:
-                task_print_info("Playing tune");
-                app_audio_play_tune();
+            case AUDIO_PLAY_SOUND_EFFECT:
+                task_print_info("Playing sound effect %u", audio_pkt.sound_effect_idx);
+                app_audio_play_sound_effect(audio_pkt.sound_effect_idx);
                 break;
 
             default:
@@ -278,7 +293,7 @@ static BaseType_t cli_handler_audio_play_tone(
 }
 
 /**
- * @brief  FreeRTOS CLI Handler for the 'play_tune' command
+ * @brief  FreeRTOS CLI Handler for the 'play_sound_effect' command
  * 
  * @param pcWriteBuffer
  * Array used to return a string to the CLI parser
@@ -289,7 +304,7 @@ static BaseType_t cli_handler_audio_play_tone(
  * @return BaseType_t
  * pdFALSE to indicate command completion
  */
-static BaseType_t cli_handler_audio_play_tune(
+static BaseType_t cli_handler_audio_play_sound_effect(
     char *pcWriteBuffer,
     size_t xWriteBufferLen,
     const char *pcCommandString
@@ -298,7 +313,7 @@ static BaseType_t cli_handler_audio_play_tune(
     audio_packet_t audio_pkt = {0};
     BaseType_t xReturn;
 
-    audio_pkt.cmd = AUDIO_PLAY_TUNE;
+    audio_pkt.cmd = AUDIO_PLAY_SOUND_EFFECT;
 
     // Remove compile time warnings about unused parameters, and check the
     // write buffer is not NULL.
@@ -307,6 +322,22 @@ static BaseType_t cli_handler_audio_play_tune(
     (void)pcCommandString;
     (void)xWriteBufferLen;
     configASSERT(pcWriteBuffer);
+
+    // Get sound effect index, with validation
+    xReturn = cli_handler_audio_get_and_check_uint_arg(
+        pcWriteBuffer,
+        xWriteBufferLen,
+        pcCommandString,
+        "sound effect index",
+        1,
+        0,
+        AUDIO_SOUND_EFFECT_MAX - 1,
+        &audio_pkt.sound_effect_idx
+    );
+    if (xReturn == pdFALSE)
+    {
+        return xReturn;
+    }
 
     // Send the message to the audio task
     audio_pkt.return_queue = q_audio_cli_resp;
@@ -334,7 +365,7 @@ void task_audio_init(void)
 
     // Register the CLI commands
     FreeRTOS_CLIRegisterCommand(&xAudioPlayTone);
-    FreeRTOS_CLIRegisterCommand(&xAudioPlayTune);
+    FreeRTOS_CLIRegisterCommand(&xAudioPlaySoundEffect);
 
     // Create the task that will control audio via CLI
     xTaskCreate(

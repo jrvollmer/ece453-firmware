@@ -1,10 +1,13 @@
 #include <FreeRTOS.h>
+#include <task.h>
 #include <math.h>
 #include "app_bt_car.h"
 #include "dc_motor.h"
+#include "task_audio.h"
 #include "task_console.h"
 #include "task_color_sensor.h"
 #include "task_car.h"
+#include "data/audio_sample_luts.h"
 
 #define IR_RECEIVER_PIN P10_3
 
@@ -18,6 +21,10 @@ static volatile bool i_am_hit = false;
 static void ir_receiver_pin_isr(void *handler_arg, cyhal_gpio_event_t event) {
     // Only count hits when racing
     i_am_hit = (race_state == RACE_STATE_ACTIVE);
+    if (i_am_hit)
+    {
+        xTaskNotify(xTaskAudioHandle, (uint32_t)AUDIO_SOUND_EFFECT_HIT, eSetValueWithOverwrite);
+    }
 };
 
 // object to register ISR function

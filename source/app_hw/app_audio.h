@@ -16,6 +16,7 @@
 // Include Standard C Libraries
 #include <stdint.h>
 #include <stdlib.h>
+#include "data/audio_sample_luts.h"
 
 
 // Defines
@@ -34,14 +35,11 @@
 #define N_TONE_SAMPLES       (100)
 #define N_TUNE_SAMPLES       (2260) // From MP3 processing script
 
-#define DMA_DESCRIPTOR_MAX_SIZE                (256)
-#define DMA_DESCRIPTOR_SRC_OFFSET(T,BASE,I)    ((T*) ((BASE) + ((DMA_DESCRIPTOR_MAX_SIZE) * (I))))
-
 
 // Function declarations
 void app_audio_init(void);
 void app_audio_play_tone(uint32_t amplitude, uint32_t frequency);
-void app_audio_play_tune(void);
+void app_audio_play_sound_effect(audio_sound_effect_e sound_effect);
 
 
 #endif // __APP_AUDIO_H__

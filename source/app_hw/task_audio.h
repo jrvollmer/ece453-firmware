@@ -42,7 +42,7 @@
 typedef enum
 {
     AUDIO_PLAY_TONE  = 0,
-    AUDIO_PLAY_TUNE  = 1
+    AUDIO_PLAY_SOUND_EFFECT  = 1
 } audio_cmd_type_t;
 
 // Audio information to pass between CLI handler and audio task
@@ -51,6 +51,7 @@ typedef struct
     audio_cmd_type_t cmd;
     uint32_t frequency;  // Frequency (Hz)
     uint32_t amplitude;  // Amplitude (mdB)
+    uint32_t sound_effect_idx;
     QueueHandle_t return_queue;
 } audio_packet_t;
 
