@@ -30,6 +30,7 @@
 
 typedef uint8_t car_item_t;
 typedef uint8_t car_lap_t;
+typedef uint8_t car_event_t;
 typedef float32_t car_joystick_t;
 
 // Item types, for internal use
@@ -40,6 +41,19 @@ typedef enum
     CAR_ITEM_MAX    = 2
 } car_item_e;
 
+typedef enum
+{
+    CAR_EVENT_RACE_START  = 0,
+    CAR_EVENT_RACE_RESUME = 1,
+    CAR_EVENT_RACE_END    = 2,
+} car_event_e;
+
+typedef enum
+{
+    RACE_STATE_ACTIVE = 0,
+    RACE_STATE_INACTIVE = 1,
+    RACE_STATE_MAX = 2,
+} race_state_e;
 
 /****************************************************************************
  * Extern Data Declarations
@@ -47,6 +61,8 @@ typedef enum
 // Queues for incoming BLE messages
 extern QueueHandle_t q_ble_car_joystick_x;
 extern QueueHandle_t q_ble_car_joystick_y;
+// Race state
+extern volatile race_state_e race_state;
 
 
 /****************************************************************************

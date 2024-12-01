@@ -39,6 +39,8 @@ typedef enum
 // Queues
 QueueHandle_t q_ble_car_joystick_x;
 QueueHandle_t q_ble_car_joystick_y;
+// Race state
+volatile race_state_e race_state;
 
 
 /****************************************************************************
@@ -55,7 +57,12 @@ BaseType_t app_bt_car_get_new_item(void)
 {
     BaseType_t ret = pdFALSE;
 
-    if (ble_state.conn_id)
+    if (race_state == RACE_STATE_INACTIVE)
+    {
+        // Not in race yet
+        ret = pdTRUE;
+    }
+    else if (ble_state.conn_id && (race_state == RACE_STATE_ACTIVE))
     {
         // Connected to app
         const ble_item_e item = rand() % BLE_ITEM_MAX;
@@ -83,7 +90,12 @@ BaseType_t app_bt_car_use_item(car_item_t item)
 {
     BaseType_t ret = pdFALSE;
 
-    if ((item > CAR_ITEM_MIN) && (item < CAR_ITEM_MAX))
+    if (race_state == RACE_STATE_INACTIVE)
+    {
+        // Not in race yet
+        ret = pdTRUE;
+    }
+    else if ((race_state == RACE_STATE_ACTIVE) && (item > CAR_ITEM_MIN) && (item < CAR_ITEM_MAX))
     {
         ret = pdTRUE;
 
@@ -91,7 +103,6 @@ BaseType_t app_bt_car_use_item(car_item_t item)
         ret &= xTaskNotify(xTaskIrLedHandle, (uint32_t)item, eSetValueWithOverwrite);
         ret &= xTaskNotify(xTaskAudioHandle, (uint32_t)item, eSetValueWithOverwrite);
     }
-
 
     return ret;
 }
@@ -104,14 +115,25 @@ BaseType_t app_bt_car_use_item(car_item_t item)
  */
 void app_bt_car_complete_lap(void)
 {
-    static car_lap_t lap_count = 1;
+    static car_lap_t lap_count = 0;
 
-    lap_count = (lap_count % BLE_CAR_MAX_LAP_COUNT) + 1;
+    if (race_state == RACE_STATE_ACTIVE)
+    {
+        // Lap count will be set/reset by app on race state changes
+        const car_lap_t rc_controller_lap = app_rc_controller_lap[0];
+        if (((rc_controller_lap == 0) && (lap_count != 0)) || (rc_controller_lap > lap_count))
+        {
+            lap_count = rc_controller_lap;
+        }
 
-    // Send if client is registered to receive notifications
-    app_rc_controller_lap[0] = lap_count;
-    app_bt_send_message(HDLC_RC_CONTROLLER_LAP_VALUE);
+        // Don't need to send actual lap count to app, as long as it's greater than 1
+        // App will keep its own lap count
+        lap_count++;
 
+        // Send if client is registered to receive notifications
+        app_rc_controller_lap[0] = lap_count;
+        app_bt_send_message(HDLC_RC_CONTROLLER_LAP_VALUE);
+    }
 }
 
 
@@ -120,6 +142,9 @@ void app_bt_car_init(void)
     // Create queues for BLE communication
     q_ble_car_joystick_x = xQueueCreate(BLE_CAR_JOYSTICK_QUEUE_LEN, sizeof(car_joystick_t));
     q_ble_car_joystick_y = xQueueCreate(BLE_CAR_JOYSTICK_QUEUE_LEN, sizeof(car_joystick_t));
+
+    // Initial race state
+    race_state = RACE_STATE_INACTIVE;
 }
 
 /* END OF FILE [] */

@@ -8,6 +8,7 @@
 
 #define IR_RECEIVER_PIN P10_3
 
+#define RACE_INACTIVE_DELAY_MS    (50)
 #define MOVING_MIN_Y    (0.25)
 
 
@@ -15,7 +16,8 @@ static volatile bool i_am_hit = false;
 
 // ISR function to detect hits
 static void ir_receiver_pin_isr(void *handler_arg, cyhal_gpio_event_t event) {
-    i_am_hit = true;
+    // Only count hits when racing
+    i_am_hit = (race_state == RACE_STATE_ACTIVE);
 };
 
 // object to register ISR function
@@ -65,81 +67,86 @@ void task_car(void *pvParameters) {
     bool restore_after_hit = false;
     
     while(1) {
-        xQueueReceive(q_color_sensor, &terrain, 10);
-        switch(terrain) {
-			case WHITE: 
-				speed = 100; // TODO Increase speed for a period of time
-				break;
-            case BROWN_ROAD:
-				speed = 75;
-				break;
-			case GREEN_GRASS:
-				speed = 10;
-				break;
-			case PINK:
-                speed = 75;
-				// give powerup
-                if (prev_terrain != PINK) {
-                    task_print("giving powerup via color sensor\n");
-                    if (app_bt_car_get_new_item() == pdTRUE) {
-                        task_print("successfully got item\n");
-                    } else {
-                        task_print("error when getting item\n");
+        if (race_state == RACE_STATE_ACTIVE) {
+            xQueueReceive(q_color_sensor, &terrain, 10);
+            switch(terrain) {
+                case WHITE:
+                    speed = 100; // TODO Increase speed for a period of time
+                    break;
+                case BROWN_ROAD:
+                    speed = 75;
+                    break;
+                case GREEN_GRASS:
+                    speed = 10;
+                    break;
+                case PINK:
+                    speed = 75;
+                    // give powerup
+                    if (prev_terrain != PINK) {
+                        task_print("giving powerup via color sensor\n");
+                        if (app_bt_car_get_new_item() == pdTRUE) {
+                            task_print("successfully got item\n");
+                        } else {
+                            task_print("error when getting item\n");
+                        }
                     }
-                }
-				break;
-		}
-        prev_terrain = terrain;
-        
-        if (i_am_hit) {
-            turn_dc_motor_off();
-            vTaskDelay(5000);
-            i_am_hit = false;
-            restore_after_hit = true;
-        } else {
-            xQueueReceive(q_ble_car_joystick_y, &y, portMAX_DELAY);
-            if (restore_after_hit || (fabs(y - prev_y) > 0.01)) {
-                int ramp_dir_scalar = 1;
-                if (y < prev_y) {
-                    // Ramping in negative direction, if needed
-                    ramp_dir_scalar = -1;
-                }
+                    break;
+            }
+            prev_terrain = terrain;
 
-                // Ramp to setpoint
-                car_joystick_t curr_y = prev_y;
-                bool reached_y;
-                do {
-                    reached_y = fabs(y - curr_y) < DC_MOTOR_RAMP_STEP_VAL;
-
-                    if (reached_y) {
-                        curr_y = y;
-                    } else {
-                        curr_y += DC_MOTOR_RAMP_STEP_VAL * ramp_dir_scalar;
+            if (i_am_hit) {
+                turn_dc_motor_off();
+                vTaskDelay(pdMS_TO_TICKS(5000));
+                i_am_hit = false;
+                restore_after_hit = true;
+            } else {
+                xQueueReceive(q_ble_car_joystick_y, &y, portMAX_DELAY);
+                if (restore_after_hit || (fabs(y - prev_y) > 0.01)) {
+                    int ramp_dir_scalar = 1;
+                    if (y < prev_y) {
+                        // Ramping in negative direction, if needed
+                        ramp_dir_scalar = -1;
                     }
 
-                    if (fabs(curr_y) > MOVING_MIN_Y) {
-                        if ((curr_y >= 0) && (dir != FORWARD)) {
-                            dir = FORWARD;
-                            set_dc_motor_direction(dir);
-                        } else if ((curr_y < 0) && (dir != REVERSE)) {
-                            dir = REVERSE;
-                            set_dc_motor_direction(dir);
+                    // Ramp to setpoint
+                    car_joystick_t curr_y = prev_y;
+                    bool reached_y;
+                    do {
+                        reached_y = fabs(y - curr_y) < DC_MOTOR_RAMP_STEP_VAL;
+
+                        if (reached_y) {
+                            curr_y = y;
+                        } else {
+                            curr_y += DC_MOTOR_RAMP_STEP_VAL * ramp_dir_scalar;
                         }
 
-                        set_dc_motor_duty_cycle(speed * fabs(curr_y));
-                    } else if (dir != STOPPED) {
-                        dir = STOPPED;
-                        turn_dc_motor_off();
-                    }
+                        if (fabs(curr_y) > MOVING_MIN_Y) {
+                            if ((curr_y >= 0) && (dir != FORWARD)) {
+                                dir = FORWARD;
+                                set_dc_motor_direction(dir);
+                            } else if ((curr_y < 0) && (dir != REVERSE)) {
+                                dir = REVERSE;
+                                set_dc_motor_direction(dir);
+                            }
 
-                    if (!reached_y) {
-                        vTaskDelay(DC_MOTOR_RAMP_STEP_MS);
-                    }
-                } while (!reached_y);
+                            set_dc_motor_duty_cycle(speed * fabs(curr_y));
+                        } else if (dir != STOPPED) {
+                            dir = STOPPED;
+                            turn_dc_motor_off();
+                        }
 
-                prev_y = y;
-                restore_after_hit = false;
+                        if (!reached_y) {
+                            vTaskDelay(pdMS_TO_TICKS(DC_MOTOR_RAMP_STEP_MS));
+                        }
+                    } while (!reached_y);
+
+                    prev_y = y;
+                    restore_after_hit = false;
+                }
             }
-        }       
+        } else {
+            // Idle while we're waiting for the race to start
+            vTaskDelay(pdMS_TO_TICKS(RACE_INACTIVE_DELAY_MS));
+        }
     }
 }

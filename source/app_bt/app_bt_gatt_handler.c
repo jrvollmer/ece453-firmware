@@ -59,7 +59,7 @@
 #include "app_bt_gatt_handler.h"
 #include "app_hw_device.h"
 #include "app_bt_car.h"
-#include "task_console.h"
+#include "task_console.h" // TODO REMOVE
 #ifdef ENABLE_BT_SPY_LOG
 #include "cybt_debug_uart.h"
 #endif
@@ -671,6 +671,36 @@ wiced_bt_gatt_status_t app_bt_set_value(uint16_t attr_handle,
                     peer_cccd_data[bondindex] = p_attr[0] | (p_attr[1] << 8);
                     rslt = app_bt_update_cccd(peer_cccd_data[bondindex], bondindex);
                     UNUSED_VARIABLE(rslt);
+                    break;
+
+                case HDLC_RC_CONTROLLER_GAME_EVENT_VALUE:
+                    if (len != MAX_LEN_RC_CONTROLLER_GAME_EVENT)
+                    {
+                        return WICED_BT_GATT_INVALID_ATTR_LEN;
+                    }
+
+                    const car_event_t race_event = p_attr[0];
+                    switch (race_event)
+                    {
+                        case CAR_EVENT_RACE_START:
+                            // Reset lap count on start
+                            app_rc_controller_lap[0] = 0;
+                            // Enables sensors/motors, items, and lap counts
+                            race_state = RACE_STATE_ACTIVE;
+                            break;
+                        case CAR_EVENT_RACE_RESUME:
+                            // Set lap count to 1 on resume (e.g. if MCU power cycled) so that future laps are counted
+                            app_rc_controller_lap[0] = 1;
+                            // Re-enables sensors/motors, items, and lap counts
+                            race_state = RACE_STATE_ACTIVE;
+                            break;
+                        case CAR_EVENT_RACE_END:
+                            race_state = RACE_STATE_INACTIVE;
+                            break;
+                        default:
+                            break;
+                    }
+
                     break;
 
                 /* By writing into Characteristic Client Configuration descriptor

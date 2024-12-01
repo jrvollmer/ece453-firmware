@@ -48,9 +48,9 @@ void task_hall_sensor(void *param) {
 		// determine if there is a magnet
 		if(hall_sensor_out > no_magnet_value + HALL_THRESHOLD || hall_sensor_out < no_magnet_value - HALL_THRESHOLD) {
             app_bt_car_complete_lap(); // increment laps on mobile app
-            vTaskDelay(5000); // prevent another lap from being scored for 5 secs
+            vTaskDelay(pdMS_TO_TICKS(5000)); // prevent another lap from being scored for 5 secs
         }
-        vTaskDelay(5);
+        vTaskDelay(pdMS_TO_TICKS(5));
 	}
 }
 
