@@ -9,10 +9,13 @@
 #include "task_car.h"
 #include "data/audio_sample_luts.h"
 
-#define IR_RECEIVER_PIN P10_3
+#define IR_RECEIVER_PIN_A P10_3
+#define IR_RECEIVER_PIN_B P10_4
+#define IR_RECEIVER_PIN_C P10_5
 
 #define RACE_INACTIVE_DELAY_MS    (50)
 #define MOVING_MIN_Y    (0.25)
+
 
 
 static volatile bool i_am_hit = false;
@@ -36,14 +39,24 @@ cyhal_gpio_callback_data_t ir_receiver_callback_data = {
 
 
 void task_car_init() {
-    // initialize IR Receiver pin as GPIO input
+    // initialize the THREE (3) IR Receiver pins as GPIO input
     cy_rslt_t rslt1;
-    rslt1 = cyhal_gpio_init(IR_RECEIVER_PIN, CYHAL_GPIO_DIR_INPUT, CYHAL_GPIO_DRIVE_NONE, false);
+    rslt1 = cyhal_gpio_init(IR_RECEIVER_PIN_A, CYHAL_GPIO_DIR_INPUT, CYHAL_GPIO_DRIVE_NONE, false);
     CY_ASSERT(CY_RSLT_SUCCESS == rslt1);
     // register ISR 
-    cyhal_gpio_register_callback(IR_RECEIVER_PIN, &ir_receiver_callback_data);
+    cyhal_gpio_register_callback(IR_RECEIVER_PIN_A, &ir_receiver_callback_data);
     /* Enable falling edge interrupt event with interrupt priority set to 3 */
-    cyhal_gpio_enable_event(IR_RECEIVER_PIN, CYHAL_GPIO_IRQ_FALL, 3, true);
+    cyhal_gpio_enable_event(IR_RECEIVER_PIN_A, CYHAL_GPIO_IRQ_FALL, 3, true);
+
+    rslt1 = cyhal_gpio_init(IR_RECEIVER_PIN_B, CYHAL_GPIO_DIR_INPUT, CYHAL_GPIO_DRIVE_NONE, false);
+    CY_ASSERT(CY_RSLT_SUCCESS == rslt1);
+    cyhal_gpio_register_callback(IR_RECEIVER_PIN_B, &ir_receiver_callback_data);
+    cyhal_gpio_enable_event(IR_RECEIVER_PIN_B, CYHAL_GPIO_IRQ_FALL, 3, true);
+
+    rslt1 = cyhal_gpio_init(IR_RECEIVER_PIN_C, CYHAL_GPIO_DIR_INPUT, CYHAL_GPIO_DRIVE_NONE, false);
+    CY_ASSERT(CY_RSLT_SUCCESS == rslt1);
+    cyhal_gpio_register_callback(IR_RECEIVER_PIN_C, &ir_receiver_callback_data);
+    cyhal_gpio_enable_event(IR_RECEIVER_PIN_C, CYHAL_GPIO_IRQ_FALL, 3, true);
 
 
     // create the task
