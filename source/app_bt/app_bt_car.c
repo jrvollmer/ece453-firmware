@@ -18,6 +18,7 @@
 #include "task_ir_led.h"
 #include "task_audio.h"
 #include "data/audio_sample_luts.h"
+#include "task_car.h"
 #include <task.h>
 #include <stdlib.h>
 
@@ -109,10 +110,12 @@ BaseType_t app_bt_car_use_item(car_item_t item)
                 break;
             case CAR_ITEM_SHIELD:
                 // TODO Protect against hits
+                xQueueSend(q_car, &item, 0);
                 ret = xTaskNotify(xTaskAudioHandle, (uint32_t)AUDIO_SOUND_EFFECT_USE_SHIELD, eSetValueWithOverwrite);
                 break;
             case CAR_ITEM_BOOST:
                 // TODO Increase speed
+                xQueueSend(q_car, &item, 0);
                 ret = xTaskNotify(xTaskAudioHandle, (uint32_t)AUDIO_SOUND_EFFECT_BOOST, eSetValueWithOverwrite);
                 break;
             default:

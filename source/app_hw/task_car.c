@@ -16,14 +16,19 @@
 #define RACE_INACTIVE_DELAY_MS    (50)
 #define MOVING_MIN_Y    (0.25)
 
-
+QueueHandle_t q_car;
+TimerHandle_t speed_timer;
+TimerHandle_t shield_timer;
+bool speed_active = false;
+bool shield_active = false;
 
 static volatile bool i_am_hit = false;
 
 // ISR function to detect hits
 static void ir_receiver_pin_isr(void *handler_arg, cyhal_gpio_event_t event) {
-    // Only count hits when racing
-    i_am_hit = (race_state == RACE_STATE_ACTIVE);
+    // Only count hits when racing 
+    // AND when shield is inactive
+    i_am_hit = ((race_state == RACE_STATE_ACTIVE) && !shield_active);
     if (i_am_hit)
     {
         xTaskNotify(xTaskAudioHandle, (uint32_t)AUDIO_SOUND_EFFECT_HIT, eSetValueWithOverwrite);
@@ -36,9 +41,34 @@ cyhal_gpio_callback_data_t ir_receiver_callback_data = {
     .callback_arg = NULL
 };
 
-
+// disable speed boost when timer expires
+void speed_timer_callback() {
+    speed_active = false;
+}
+// disable the shield when the timer expires
+void shield_timer_callback() {
+    shield_active = false;
+}
 
 void task_car_init() {
+    // initialize queue to receive powerup usage info
+    q_car = xQueueCreate(1, sizeof(car_item_t));
+
+    speed_timer = xTimerCreate("speed_timer",            // name
+                            pdMS_TO_TICKS(5000),         // expires after 5 secs
+                            pdFALSE,                     // one shot timer 
+                            ( void * ) 0,                /* The ID is used to store a count of the number of times the timer has expired, which is initialised to 0. */
+                            speed_timer_callback         // callback function
+                            );
+
+    shield_timer = xTimerCreate("shield_timer",            // name
+                            pdMS_TO_TICKS(10000),         // expires after 10 secs
+                            pdFALSE,                     // one shot timer 
+                            ( void * ) 0,                /* The ID is used to store a count of the number of times the timer has expired, which is initialised to 0. */
+                            shield_timer_callback         // callback function
+                            );
+
+
     // initialize the THREE (3) IR Receiver pins as GPIO input
     cy_rslt_t rslt1;
     rslt1 = cyhal_gpio_init(IR_RECEIVER_PIN_A, CYHAL_GPIO_DIR_INPUT, CYHAL_GPIO_DRIVE_NONE, false);
@@ -84,36 +114,52 @@ void task_car(void *pvParameters) {
     uint8_t speed = 0; 
     color_sensor_terrain_t terrain = BROWN_ROAD;
     color_sensor_terrain_t prev_terrain = BROWN_ROAD;
+    car_item_t powerup = CAR_ITEM_MIN;
     bool restore_after_hit = false;
     
     while(1) {
         if (race_state == RACE_STATE_ACTIVE) {
-            xQueueReceive(q_color_sensor, &terrain, 10);
-            switch(terrain) {
-                case WHITE:
-                    speed = 100; // TODO Increase speed for a period of time
-                    break;
-                case BROWN_ROAD:
-                    speed = 75;
-                    break;
-                case GREEN_GRASS:
-                    speed = 10;
-                    break;
-                case PINK:
-                    speed = 75;
-                    // give powerup
-                    if (prev_terrain != PINK) {
-                        task_print("giving powerup via color sensor\n");
-                        if (app_bt_car_get_new_item() == pdTRUE) {
-                            task_print("successfully got item\n");
-                        } else {
-                            task_print("error when getting item\n");
-                        }
-                    }
-                    break;
+            if (pdTRUE == xQueueReceive(q_car, &powerup, 0)) {
+                if (powerup == CAR_ITEM_BOOST) {
+                    speed = 100; 
+                    speed_active = true;
+                    xTimerStart(speed_timer, 0); // start timer to make sure speed boost deactivates in 5 secs
+                } else if (powerup == CAR_ITEM_SHIELD) {
+                    shield_active = true;
+                    xTimerStart(shield_timer, 0); // start timer to make sure shield deactivates in 10 secs
+                }
             }
-            prev_terrain = terrain;
-
+            
+            if (!speed_active) {
+                xQueueReceive(q_color_sensor, &terrain, 10);
+                switch(terrain) {
+                    case WHITE:
+                        speed = 100; 
+                        speed_active = true;
+                        xTimerStart(speed_timer, 0); // start timer to make sure speed boost deactivates in 5 secs
+                        break;
+                    case BROWN_ROAD:
+                        speed = 75;
+                        break;
+                    case GREEN_GRASS:
+                        speed = 10;
+                        break;
+                    case PINK:
+                        speed = 75;
+                        // give powerup
+                        if (prev_terrain != PINK) {
+                            task_print("giving powerup via color sensor\n");
+                            if (app_bt_car_get_new_item() == pdTRUE) {
+                                task_print("successfully got item\n");
+                            } else {
+                                task_print("error when getting item\n");
+                            }
+                        }
+                        break;
+                }
+                prev_terrain = terrain;
+            }
+            
             if (i_am_hit) {
                 turn_dc_motor_off();
                 vTaskDelay(pdMS_TO_TICKS(5000));
