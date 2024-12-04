@@ -15,11 +15,14 @@
 
 #define RACE_INACTIVE_DELAY_MS    (50)
 #define MOVING_MIN_SPEED    (25)
+#define IR_RECEIVER_THRESHOLD 5
 
 QueueHandle_t q_car;
 TimerHandle_t speed_timer;
 TimerHandle_t shield_timer;
 TimerHandle_t pink_timer;
+TimerHandle_t ir_receiver_timer;
+uint8_t ir_receiver_count[3] = {0,0,0}; 
 bool speed_active = false;
 bool shield_active = false;
 bool can_get_new_powerup = true;
@@ -27,30 +30,6 @@ bool can_get_new_powerup = true;
 static volatile bool i_am_hit = false;
 bool prev_i_am_hit = false;
 
-// ISR function to detect hits
-static void ir_receiver_pin_isr(void *handler_arg, cyhal_gpio_event_t event) {
-    // Only count hits when racing 
-    // AND when shield is inactive
-    i_am_hit = ((race_state == RACE_STATE_ACTIVE) && !shield_active);
-};
-
-// object to register ISR function
-static cyhal_gpio_callback_data_t ir_receiver_callback_data1 = {
-    .callback = ir_receiver_pin_isr,
-    .callback_arg = NULL
-};
-
-// object to register ISR function
-static cyhal_gpio_callback_data_t ir_receiver_callback_data2 = {
-    .callback = ir_receiver_pin_isr,
-    .callback_arg = NULL
-};
-
-// object to register ISR function
-static cyhal_gpio_callback_data_t ir_receiver_callback_data3 = {
-    .callback = ir_receiver_pin_isr,
-    .callback_arg = NULL
-};
 
 // disable speed boost when timer expires
 void speed_timer_callback() {
@@ -64,6 +43,30 @@ void shield_timer_callback() {
 void pink_timer_callback() {
     can_get_new_powerup = true;
 }
+// count up if IR receivers are activated   
+void ir_receiver_timer_callback() {
+    // only check for hits when racing AND we have no shield AND we aren't hit
+    if ((race_state == RACE_STATE_ACTIVE) && !shield_active && !i_am_hit) {
+        // when IR receiver is activated, the pin is low
+        if (!cyhal_gpio_read(IR_RECEIVER_PIN_A)) {
+            ir_receiver_count[0]++;
+        }
+        if (!cyhal_gpio_read(IR_RECEIVER_PIN_B)) {
+            ir_receiver_count[1]++;
+        }
+        if (!cyhal_gpio_read(IR_RECEIVER_PIN_C)) {
+            ir_receiver_count[2]++;
+        }
+        // check if any pins counted a hit
+        if (ir_receiver_count[0] > IR_RECEIVER_THRESHOLD || ir_receiver_count[1] > IR_RECEIVER_THRESHOLD || ir_receiver_count[2] > IR_RECEIVER_THRESHOLD) {
+            i_am_hit = true;
+            // reset all counts
+            ir_receiver_count[0] = 0;
+            ir_receiver_count[1] = 0;
+            ir_receiver_count[2] = 0;
+        }
+    }
+}
 
 void task_car_init() {
     // initialize queue to receive powerup usage info
@@ -75,7 +78,6 @@ void task_car_init() {
                             ( void * ) 0,                /* The ID is used to store a count of the number of times the timer has expired, which is initialised to 0. */
                             speed_timer_callback         // callback function
                             );
-
     shield_timer = xTimerCreate("shield_timer",            // name
                             pdMS_TO_TICKS(10000),         // expires after 10 secs
                             pdFALSE,                     // one shot timer 
@@ -88,26 +90,24 @@ void task_car_init() {
                             ( void * ) 0,                /* The ID is used to store a count of the number of times the timer has expired, which is initialised to 0. */
                             pink_timer_callback         // callback function
                             );
+    ir_receiver_timer = xTimerCreate("ir_receiver_timer",            // name
+                            pdMS_TO_TICKS(10),          // check ir receivers every 10ms
+                            pdTRUE,                     // timer repeats
+                            ( void * ) 0,               /* The ID is used to store a count of the number of times the timer has expired, which is initialised to 0. */
+                            ir_receiver_timer_callback         // callback function
+                            );
 
 
     // initialize the THREE (3) IR Receiver pins as GPIO input
     cy_rslt_t rslt1;
     rslt1 = cyhal_gpio_init(IR_RECEIVER_PIN_A, CYHAL_GPIO_DIR_INPUT, CYHAL_GPIO_DRIVE_NONE, false);
     CY_ASSERT(CY_RSLT_SUCCESS == rslt1);
-    // register ISR 
-    cyhal_gpio_register_callback(IR_RECEIVER_PIN_A, &ir_receiver_callback_data1);
-    // Enable falling edge interrupt event with interrupt priority set to 3
-    cyhal_gpio_enable_event(IR_RECEIVER_PIN_A, CYHAL_GPIO_IRQ_FALL, 3, true);
 
     rslt1 = cyhal_gpio_init(IR_RECEIVER_PIN_B, CYHAL_GPIO_DIR_INPUT, CYHAL_GPIO_DRIVE_NONE, false);
     CY_ASSERT(CY_RSLT_SUCCESS == rslt1);
-    cyhal_gpio_register_callback(IR_RECEIVER_PIN_B, &ir_receiver_callback_data2);
-    cyhal_gpio_enable_event(IR_RECEIVER_PIN_B, CYHAL_GPIO_IRQ_FALL, 3, true);
 
     rslt1 = cyhal_gpio_init(IR_RECEIVER_PIN_C, CYHAL_GPIO_DIR_INPUT, CYHAL_GPIO_DRIVE_NONE, false);
     CY_ASSERT(CY_RSLT_SUCCESS == rslt1);
-    cyhal_gpio_register_callback(IR_RECEIVER_PIN_C, &ir_receiver_callback_data3);
-    cyhal_gpio_enable_event(IR_RECEIVER_PIN_C, CYHAL_GPIO_IRQ_FALL, 3, true);
 
 
     // create the task
@@ -137,6 +137,8 @@ void task_car(void *pvParameters) {
     color_sensor_terrain_t prev_terrain = BROWN_ROAD;
     car_item_t powerup = CAR_ITEM_MIN;
     bool restore_after_hit = false;
+    // start the ir_receiver_timer
+    xTimerStart(ir_receiver_timer, 0);
     
     while(1) {
         if (race_state == RACE_STATE_ACTIVE) {
