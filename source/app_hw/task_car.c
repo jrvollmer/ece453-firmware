@@ -19,8 +19,10 @@
 QueueHandle_t q_car;
 TimerHandle_t speed_timer;
 TimerHandle_t shield_timer;
+TimerHandle_t pink_timer;
 bool speed_active = false;
 bool shield_active = false;
+bool can_get_new_powerup = true;
 
 static volatile bool i_am_hit = false;
 
@@ -49,6 +51,10 @@ void speed_timer_callback() {
 void shield_timer_callback() {
     shield_active = false;
 }
+// allow player to get another powerup when timer expires.
+void pink_timer_callback() {
+    can_get_new_powerup = true;
+}
 
 void task_car_init() {
     // initialize queue to receive powerup usage info
@@ -67,6 +73,12 @@ void task_car_init() {
                             ( void * ) 0,                /* The ID is used to store a count of the number of times the timer has expired, which is initialised to 0. */
                             shield_timer_callback         // callback function
                             );
+    pink_timer = xTimerCreate("pink_timer",            // name
+                            pdMS_TO_TICKS(5000),         // expires after 10 secs
+                            pdFALSE,                     // one shot timer 
+                            ( void * ) 0,                /* The ID is used to store a count of the number of times the timer has expired, which is initialised to 0. */
+                            pink_timer_callback         // callback function
+                            );
 
 
     // initialize the THREE (3) IR Receiver pins as GPIO input
@@ -83,16 +95,16 @@ void task_car_init() {
     cyhal_gpio_register_callback(IR_RECEIVER_PIN_B, &ir_receiver_callback_data);
     cyhal_gpio_enable_event(IR_RECEIVER_PIN_B, CYHAL_GPIO_IRQ_FALL, 3, true);
 
-    rslt1 = cyhal_gpio_init(IR_RECEIVER_PIN_C, CYHAL_GPIO_DIR_INPUT, CYHAL_GPIO_DRIVE_NONE, false);
-    CY_ASSERT(CY_RSLT_SUCCESS == rslt1);
-    cyhal_gpio_register_callback(IR_RECEIVER_PIN_C, &ir_receiver_callback_data);
-    cyhal_gpio_enable_event(IR_RECEIVER_PIN_C, CYHAL_GPIO_IRQ_FALL, 3, true);
+    // rslt1 = cyhal_gpio_init(IR_RECEIVER_PIN_C, CYHAL_GPIO_DIR_INPUT, CYHAL_GPIO_DRIVE_NONE, false);
+    // CY_ASSERT(CY_RSLT_SUCCESS == rslt1);
+    // cyhal_gpio_register_callback(IR_RECEIVER_PIN_C, &ir_receiver_callback_data);
+    // cyhal_gpio_enable_event(IR_RECEIVER_PIN_C, CYHAL_GPIO_IRQ_FALL, 3, true);
 
 
     // create the task
     BaseType_t rslt = xTaskCreate(task_car,
                                   "Car",
-                                  configMINIMAL_STACK_SIZE * 3,
+                                  configMINIMAL_STACK_SIZE * 7,
                                   NULL,
                                   configMAX_PRIORITIES - 5,
                                   NULL);
@@ -129,14 +141,31 @@ void task_car(void *pvParameters) {
                     xTimerStart(shield_timer, 0); // start timer to make sure shield deactivates in 10 secs
                 }
             }
-            
+            // keep receiving from color sensor so as to not get stale values
+            xQueueReceive(q_color_sensor, &terrain, 10);
+            // we still want to get power ups even if we are under influence of speed boost
+            if (terrain == PINK) {
+                // give powerup
+                if (can_get_new_powerup && prev_terrain != PINK) {
+                    if (app_bt_car_get_new_item() == pdTRUE) {
+                        task_print("successfully got item\n");
+                    } else {
+                        task_print("error when getting item\n");
+                    }
+                    can_get_new_powerup = false;
+                    xTimerStart(pink_timer, 0);
+                }
+            }
+            prev_terrain = terrain;
+
+            // cases where speed is affected.
             if (!speed_active) {
-                xQueueReceive(q_color_sensor, &terrain, 10);
                 switch(terrain) {
                     case WHITE:
                         speed = 100; 
                         speed_active = true;
                         xTimerStart(speed_timer, 0); // start timer to make sure speed boost deactivates in 5 secs
+                        task_print("starting speed\n");
                         break;
                     case BROWN_ROAD:
                         speed = 75;
@@ -146,18 +175,8 @@ void task_car(void *pvParameters) {
                         break;
                     case PINK:
                         speed = 75;
-                        // give powerup
-                        if (prev_terrain != PINK) {
-                            task_print("giving powerup via color sensor\n");
-                            if (app_bt_car_get_new_item() == pdTRUE) {
-                                task_print("successfully got item\n");
-                            } else {
-                                task_print("error when getting item\n");
-                            }
-                        }
                         break;
                 }
-                prev_terrain = terrain;
             }
             
             if (i_am_hit) {
