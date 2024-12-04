@@ -25,16 +25,13 @@ bool shield_active = false;
 bool can_get_new_powerup = true;
 
 static volatile bool i_am_hit = false;
+bool prev_i_am_hit = false;
 
 // ISR function to detect hits
 static void ir_receiver_pin_isr(void *handler_arg, cyhal_gpio_event_t event) {
     // Only count hits when racing 
     // AND when shield is inactive
     i_am_hit = ((race_state == RACE_STATE_ACTIVE) && !shield_active);
-    if (i_am_hit)
-    {
-        xTaskNotify(xTaskAudioHandle, (uint32_t)AUDIO_SOUND_EFFECT_HIT, eSetValueWithOverwrite);
-    }
 };
 
 // object to register ISR function
@@ -143,6 +140,12 @@ void task_car(void *pvParameters) {
     
     while(1) {
         if (race_state == RACE_STATE_ACTIVE) {
+            if (!prev_i_am_hit && i_am_hit) {
+                xTaskNotify(xTaskAudioHandle, (uint32_t)AUDIO_SOUND_EFFECT_HIT, eSetValueWithOverwrite);
+                task_print("ISR triggered\n");
+            }
+            prev_i_am_hit = i_am_hit;
+
             if (pdTRUE == xQueueReceive(q_car, &powerup, 0)) {
                 if (powerup == CAR_ITEM_BOOST) {
                     speed = 100; 
