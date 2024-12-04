@@ -14,7 +14,7 @@
 #define IR_RECEIVER_PIN_C P10_5
 
 #define RACE_INACTIVE_DELAY_MS    (50)
-#define MOVING_MIN_Y    (0.25)
+#define MOVING_MIN_SPEED    (25)
 
 QueueHandle_t q_car;
 TimerHandle_t speed_timer;
@@ -38,7 +38,19 @@ static void ir_receiver_pin_isr(void *handler_arg, cyhal_gpio_event_t event) {
 };
 
 // object to register ISR function
-cyhal_gpio_callback_data_t ir_receiver_callback_data = {
+static cyhal_gpio_callback_data_t ir_receiver_callback_data1 = {
+    .callback = ir_receiver_pin_isr,
+    .callback_arg = NULL
+};
+
+// object to register ISR function
+static cyhal_gpio_callback_data_t ir_receiver_callback_data2 = {
+    .callback = ir_receiver_pin_isr,
+    .callback_arg = NULL
+};
+
+// object to register ISR function
+static cyhal_gpio_callback_data_t ir_receiver_callback_data3 = {
     .callback = ir_receiver_pin_isr,
     .callback_arg = NULL
 };
@@ -86,19 +98,19 @@ void task_car_init() {
     rslt1 = cyhal_gpio_init(IR_RECEIVER_PIN_A, CYHAL_GPIO_DIR_INPUT, CYHAL_GPIO_DRIVE_NONE, false);
     CY_ASSERT(CY_RSLT_SUCCESS == rslt1);
     // register ISR 
-    cyhal_gpio_register_callback(IR_RECEIVER_PIN_A, &ir_receiver_callback_data);
-    /* Enable falling edge interrupt event with interrupt priority set to 3 */
+    cyhal_gpio_register_callback(IR_RECEIVER_PIN_A, &ir_receiver_callback_data1);
+    // Enable falling edge interrupt event with interrupt priority set to 3
     cyhal_gpio_enable_event(IR_RECEIVER_PIN_A, CYHAL_GPIO_IRQ_FALL, 3, true);
 
     rslt1 = cyhal_gpio_init(IR_RECEIVER_PIN_B, CYHAL_GPIO_DIR_INPUT, CYHAL_GPIO_DRIVE_NONE, false);
     CY_ASSERT(CY_RSLT_SUCCESS == rslt1);
-    cyhal_gpio_register_callback(IR_RECEIVER_PIN_B, &ir_receiver_callback_data);
+    cyhal_gpio_register_callback(IR_RECEIVER_PIN_B, &ir_receiver_callback_data2);
     cyhal_gpio_enable_event(IR_RECEIVER_PIN_B, CYHAL_GPIO_IRQ_FALL, 3, true);
 
-    // rslt1 = cyhal_gpio_init(IR_RECEIVER_PIN_C, CYHAL_GPIO_DIR_INPUT, CYHAL_GPIO_DRIVE_NONE, false);
-    // CY_ASSERT(CY_RSLT_SUCCESS == rslt1);
-    // cyhal_gpio_register_callback(IR_RECEIVER_PIN_C, &ir_receiver_callback_data);
-    // cyhal_gpio_enable_event(IR_RECEIVER_PIN_C, CYHAL_GPIO_IRQ_FALL, 3, true);
+    rslt1 = cyhal_gpio_init(IR_RECEIVER_PIN_C, CYHAL_GPIO_DIR_INPUT, CYHAL_GPIO_DRIVE_NONE, false);
+    CY_ASSERT(CY_RSLT_SUCCESS == rslt1);
+    cyhal_gpio_register_callback(IR_RECEIVER_PIN_C, &ir_receiver_callback_data3);
+    cyhal_gpio_enable_event(IR_RECEIVER_PIN_C, CYHAL_GPIO_IRQ_FALL, 3, true);
 
 
     // create the task
@@ -120,7 +132,7 @@ void task_car_init() {
 
 void task_car(void *pvParameters) {
     car_joystick_t y = 0;
-    car_joystick_t prev_y = y;
+    float32_t prev_scaled_speed = y;
     uint8_t dir = STOPPED;
     turn_dc_motor_off();
     uint8_t speed = 0; 
@@ -168,17 +180,17 @@ void task_car(void *pvParameters) {
                         task_print("starting speed\n");
                         break;
                     case BROWN_ROAD:
-                        speed = 75;
+                        speed = 50;
                         break;
                     case GREEN_GRASS:
-                        speed = 10;
+                        speed = 25;
                         break;
                     case PINK:
-                        speed = 75;
+                        speed = 50;
                         break;
                 }
             }
-            
+
             if (i_am_hit) {
                 turn_dc_motor_off();
                 vTaskDelay(pdMS_TO_TICKS(5000));
@@ -186,51 +198,58 @@ void task_car(void *pvParameters) {
                 restore_after_hit = true;
             } else {
                 xQueueReceive(q_ble_car_joystick_y, &y, portMAX_DELAY);
-                if (restore_after_hit || (fabs(y - prev_y) > 0.01)) {
+
+                float32_t scaled_speed = speed * y;
+
+                if (restore_after_hit || (fabs(scaled_speed - prev_scaled_speed) > DC_MOTOR_RAMP_STEP_VAL)) {
                     int ramp_dir_scalar = 1;
-                    if (y < prev_y) {
+                    if (scaled_speed < prev_scaled_speed) {
                         // Ramping in negative direction, if needed
                         ramp_dir_scalar = -1;
                     }
 
                     // Ramp to setpoint
-                    car_joystick_t curr_y = prev_y;
-                    bool reached_y;
+                    float32_t curr_scaled_speed = prev_scaled_speed;
+                    bool reached_target;
                     do {
-                        reached_y = fabs(y - curr_y) < DC_MOTOR_RAMP_STEP_VAL;
+                        reached_target = fabs(scaled_speed - curr_scaled_speed) < DC_MOTOR_RAMP_STEP_VAL;
 
-                        if (reached_y) {
-                            curr_y = y;
+                        if (reached_target) {
+                            curr_scaled_speed = scaled_speed;
                         } else {
-                            curr_y += DC_MOTOR_RAMP_STEP_VAL * ramp_dir_scalar;
+                            curr_scaled_speed += DC_MOTOR_RAMP_STEP_VAL * ramp_dir_scalar;
                         }
 
-                        if (fabs(curr_y) > MOVING_MIN_Y) {
-                            if ((curr_y >= 0) && (dir != FORWARD)) {
+                        if (fabs(curr_scaled_speed) > MOVING_MIN_SPEED) {
+                            if ((curr_scaled_speed >= 0) && (dir != FORWARD)) {
                                 dir = FORWARD;
                                 set_dc_motor_direction(dir);
-                            } else if ((curr_y < 0) && (dir != REVERSE)) {
+                            } else if ((curr_scaled_speed < 0) && (dir != REVERSE)) {
                                 dir = REVERSE;
                                 set_dc_motor_direction(dir);
                             }
 
-                            set_dc_motor_duty_cycle(speed * fabs(curr_y));
+                            set_dc_motor_duty_cycle(fabs(curr_scaled_speed));
                         } else if (dir != STOPPED) {
                             dir = STOPPED;
                             turn_dc_motor_off();
                         }
 
-                        if (!reached_y) {
+                        if (!reached_target) {
                             vTaskDelay(pdMS_TO_TICKS(DC_MOTOR_RAMP_STEP_MS));
                         }
-                    } while (!reached_y);
+                    } while (!reached_target);
 
-                    prev_y = y;
+                    prev_scaled_speed = scaled_speed;
                     restore_after_hit = false;
                 }
             }
         } else {
             // Idle while we're waiting for the race to start
+            if (dir != STOPPED) {
+                dir = STOPPED;
+                turn_dc_motor_off();
+            }
             vTaskDelay(pdMS_TO_TICKS(RACE_INACTIVE_DELAY_MS));
         }
     }

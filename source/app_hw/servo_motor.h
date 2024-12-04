@@ -12,7 +12,7 @@
 
 #define LEFT45 10
 #define LEFT30 8.75
-#define TURN_DUTY_RANGE 1.25
+#define TURN_DUTY_RANGE  2.5
 #define STRAIGHT 7.5
 #define RIGHT30 6.25
 #define RIGHT45 5
