@@ -2,6 +2,7 @@
 #include <task.h>
 #include <math.h>
 #include "app_bt_car.h"
+#include "task_ir_led.h"
 #include "dc_motor.h"
 #include "task_audio.h"
 #include "task_console.h"
@@ -22,6 +23,7 @@ TimerHandle_t speed_timer;
 TimerHandle_t shield_timer;
 TimerHandle_t pink_timer;
 TimerHandle_t ir_receiver_timer;
+TimerHandle_t i_frame_timer;
 uint8_t ir_receiver_count[3] = {0,0,0}; 
 bool speed_active = false;
 bool shield_active = false;
@@ -96,6 +98,12 @@ void task_car_init() {
                             ( void * ) 0,               /* The ID is used to store a count of the number of times the timer has expired, which is initialised to 0. */
                             ir_receiver_timer_callback         // callback function
                             );
+    i_frame_timer = xTimerCreate("i_frame_timer",            // name
+                            pdMS_TO_TICKS(1000),          // give car shield for 1 second so it can't disable itself
+                            pdFALSE,                     // one shot timer
+                            ( void * ) 0,               /* The ID is used to store a count of the number of times the timer has expired, which is initialised to 0. */
+                            shield_timer_callback         // callback function
+                            );
 
 
     // initialize the THREE (3) IR Receiver pins as GPIO input
@@ -113,7 +121,7 @@ void task_car_init() {
     // create the task
     BaseType_t rslt = xTaskCreate(task_car,
                                   "Car",
-                                  configMINIMAL_STACK_SIZE * 7,
+                                  configMINIMAL_STACK_SIZE * 8,
                                   NULL,
                                   configMAX_PRIORITIES - 5,
                                   NULL);
@@ -144,7 +152,6 @@ void task_car(void *pvParameters) {
         if (race_state == RACE_STATE_ACTIVE) {
             if (!prev_i_am_hit && i_am_hit) {
                 xTaskNotify(xTaskAudioHandle, (uint32_t)AUDIO_SOUND_EFFECT_HIT, eSetValueWithOverwrite);
-                task_print("ISR triggered\n");
             }
             prev_i_am_hit = i_am_hit;
 
@@ -156,6 +163,13 @@ void task_car(void *pvParameters) {
                 } else if (powerup == CAR_ITEM_SHIELD) {
                     shield_active = true;
                     xTimerStart(shield_timer, 0); // start timer to make sure shield deactivates in 10 secs
+                } else if (powerup == CAR_ITEM_SHOT) {
+                    // give the car i frames when shooting 
+                    shield_active = true;
+                    // task_print("iframes\n");
+                    xTimerStart(i_frame_timer, 0); // start timer to make sure shield (I-frame) deactivates in 1 sec
+                    xTaskNotify(xTaskIrLedHandle, (uint32_t)powerup, eSetValueWithOverwrite);
+                    xTaskNotify(xTaskAudioHandle, (uint32_t)AUDIO_SOUND_EFFECT_USE_SHOT, eSetValueWithOverwrite);
                 }
             }
             // keep receiving from color sensor so as to not get stale values
@@ -182,7 +196,7 @@ void task_car(void *pvParameters) {
                         speed = 100; 
                         speed_active = true;
                         xTimerStart(speed_timer, 0); // start timer to make sure speed boost deactivates in 5 secs
-                        task_print("starting speed\n");
+                        // task_print("starting speed\n");
                         break;
                     case BROWN_ROAD:
                         speed = 50;

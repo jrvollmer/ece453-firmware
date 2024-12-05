@@ -105,8 +105,8 @@ BaseType_t app_bt_car_use_item(car_item_t item)
         switch (item)
         {
             case CAR_ITEM_SHOT:
-                ret = xTaskNotify(xTaskIrLedHandle, (uint32_t)item, eSetValueWithOverwrite);
-                ret &= xTaskNotify(xTaskAudioHandle, (uint32_t)AUDIO_SOUND_EFFECT_USE_SHOT, eSetValueWithOverwrite);
+                xQueueSend(q_car, &item, 0); // give car i-frames
+                ret = pdTRUE;
                 break;
             case CAR_ITEM_SHIELD:
                 // TODO Protect against hits
