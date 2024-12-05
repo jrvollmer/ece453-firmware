@@ -15,22 +15,21 @@
 #define IR_RECEIVER_PIN_C P10_5
 
 #define RACE_INACTIVE_DELAY_MS    (50)
-#define MOVING_MIN_SPEED    (25)
-#define IR_RECEIVER_THRESHOLD 5
+#define IR_RECEIVER_THRESHOLD     (5)
 
 QueueHandle_t q_car;
-TimerHandle_t speed_timer;
-TimerHandle_t shield_timer;
-TimerHandle_t pink_timer;
-TimerHandle_t ir_receiver_timer;
-TimerHandle_t i_frame_timer;
-uint8_t ir_receiver_count[3] = {0,0,0}; 
-bool speed_active = false;
-bool shield_active = false;
-bool can_get_new_powerup = true;
+static TimerHandle_t speed_timer;
+static TimerHandle_t shield_timer;
+static TimerHandle_t pink_timer;
+static TimerHandle_t ir_receiver_timer;
+static TimerHandle_t i_frame_timer;
+static uint8_t ir_receiver_count[3] = {0,0,0};
+static bool speed_active = false;
+static bool shield_active = false;
+static bool can_get_new_powerup = true;
 
 static volatile bool i_am_hit = false;
-bool prev_i_am_hit = false;
+static bool prev_i_am_hit = false;
 
 
 // disable speed boost when timer expires
@@ -156,20 +155,22 @@ void task_car(void *pvParameters) {
             prev_i_am_hit = i_am_hit;
 
             if (pdTRUE == xQueueReceive(q_car, &powerup, 0)) {
-                if (powerup == CAR_ITEM_BOOST) {
-                    speed = 100; 
-                    speed_active = true;
-                    xTimerStart(speed_timer, 0); // start timer to make sure speed boost deactivates in 5 secs
-                } else if (powerup == CAR_ITEM_SHIELD) {
-                    shield_active = true;
-                    xTimerStart(shield_timer, 0); // start timer to make sure shield deactivates in 10 secs
-                } else if (powerup == CAR_ITEM_SHOT) {
-                    // give the car i frames when shooting 
-                    shield_active = true;
-                    // task_print("iframes\n");
-                    xTimerStart(i_frame_timer, 0); // start timer to make sure shield (I-frame) deactivates in 1 sec
-                    xTaskNotify(xTaskIrLedHandle, (uint32_t)powerup, eSetValueWithOverwrite);
-                    xTaskNotify(xTaskAudioHandle, (uint32_t)AUDIO_SOUND_EFFECT_USE_SHOT, eSetValueWithOverwrite);
+                switch (powerup) {
+                    case CAR_ITEM_BOOST:
+                        speed = 100;
+                        speed_active = true;
+                        xTimerStart(speed_timer, 0); // start timer to make sure speed boost deactivates in 5 secs
+                        break;
+                    case CAR_ITEM_SHIELD:
+                        shield_active = true;
+                        xTimerStart(shield_timer, 0); // start timer to make sure shield deactivates in 10 secs
+                        break;
+                    case CAR_ITEM_SHOT:
+                        // give the car invincibility frames when shooting
+                        shield_active = true;
+                        xTimerStart(i_frame_timer, 0); // start timer to make sure shield (I-frame) deactivates in 1 sec
+                        xTaskNotify(xTaskIrLedHandle, (uint32_t)powerup, eSetValueWithOverwrite);
+                        break;
                 }
             }
             // keep receiving from color sensor so as to not get stale values
@@ -187,7 +188,6 @@ void task_car(void *pvParameters) {
                     xTimerStart(pink_timer, 0);
                 }
             }
-            prev_terrain = terrain;
 
             // cases where speed is affected.
             if (!speed_active) {
@@ -195,8 +195,9 @@ void task_car(void *pvParameters) {
                     case WHITE:
                         speed = 100; 
                         speed_active = true;
-                        xTimerStart(speed_timer, 0); // start timer to make sure speed boost deactivates in 5 secs
-                        // task_print("starting speed\n");
+                        // Start timer to make sure speed boost deactivates in 5 sec
+                        xTimerStart(speed_timer, 0);
+                        xTaskNotify(xTaskAudioHandle, (uint32_t)AUDIO_SOUND_EFFECT_BOOST, eSetValueWithOverwrite);
                         break;
                     case BROWN_ROAD:
                         speed = 50;
@@ -207,12 +208,15 @@ void task_car(void *pvParameters) {
                     case PINK:
                         speed = 50;
                         break;
+                    default:
+                        break;
                 }
             }
+            prev_terrain = terrain;
 
             if (i_am_hit) {
                 turn_dc_motor_off();
-                vTaskDelay(pdMS_TO_TICKS(5000));
+                vTaskDelay(pdMS_TO_TICKS(5000)); // TODO Replacce with timer like the power ups
                 i_am_hit = false;
                 restore_after_hit = true;
             } else {
@@ -239,7 +243,7 @@ void task_car(void *pvParameters) {
                             curr_scaled_speed += DC_MOTOR_RAMP_STEP_VAL * ramp_dir_scalar;
                         }
 
-                        if (fabs(curr_scaled_speed) > MOVING_MIN_SPEED) {
+                        if (fabs(curr_scaled_speed) > DC_MOTOR_MIN_DUTY) {
                             if ((curr_scaled_speed >= 0) && (dir != FORWARD)) {
                                 dir = FORWARD;
                                 set_dc_motor_direction(dir);

@@ -139,33 +139,23 @@ void task_color_sensor(void *param)
 		blue /= max;
 	
 		// determine which track the color sensor sees
-		color_sensor_terrain_t terrain = WHITE;
+		color_sensor_terrain_t terrain = TRANSITION;
 		if (red > blue + THRESHOLD && blue > green + 0.05) {
 			terrain = PINK;
 		} else if (red > green + THRESHOLD && red > blue + CARDBOARD_RB_THRESHOLD) {
 			terrain = BROWN_ROAD;
 		} else if (green > red + THRESHOLD && green > blue + THRESHOLD) {
 			terrain = GREEN_GRASS;
-		} 
+		} else if (red > WHITE_THRESHOLD && green > WHITE_THRESHOLD && blue > WHITE_THRESHOLD) {
+			terrain = WHITE;
+		}
 
-		// send to queue
-		xQueueSend(q_color_sensor, &terrain, portMAX_DELAY);
-
-		// debug printouts
-		// switch(terrain) {
-		// 	case WHITE: 
-		// 		task_print("white\n");
-		// 		break;
-		// 	case GREEN_GRASS:
-		// 		task_print("green\n");
-		// 		break;
-		// 	case BROWN_ROAD:
-		// 		task_print("brown cardboard\n");	
-		// 		break;
-		// 	case PINK:
-		// 		task_print("pink\n");	
-		// 		break;
-		// }
+		if (terrain != TRANSITION) {
+			// send to queue
+			xQueueSend(q_color_sensor, &terrain, portMAX_DELAY);
+		} else {
+			vTaskDelay(pdMS_TO_TICKS(5));
+		}
 	}
 }
 
@@ -184,7 +174,7 @@ void task_color_sensor_init(void) {
 	xTaskCreate(
 		task_color_sensor,
 		"Task Color Sensor",
-		configMINIMAL_STACK_SIZE*5,
+		configMINIMAL_STACK_SIZE*5, // TODO This can go much lower
 		NULL,
 		configMAX_PRIORITIES - 5,
 		NULL);

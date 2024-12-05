@@ -20,12 +20,14 @@
 #define COLOR_TURN_ON_CMD               0x0000
 #define THRESHOLD                       0.1
 #define CARDBOARD_RB_THRESHOLD          0.4
+#define WHITE_THRESHOLD                 0.75
 
 typedef enum {
-    BROWN_ROAD,
-    WHITE,
-    GREEN_GRASS,
-    PINK
+    BROWN_ROAD = 0,
+    WHITE = 1,
+    GREEN_GRASS = 2,
+    PINK = 3,
+    TRANSITION = 4
 } color_sensor_terrain_t;
 
 extern QueueHandle_t q_color_sensor;

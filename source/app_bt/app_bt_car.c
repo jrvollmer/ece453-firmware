@@ -88,7 +88,9 @@ BaseType_t app_bt_car_get_new_item(void)
  * @param car_item_t
  * The individual item to use
  * @return BaseType_t
- * pdTRUE if successfully used item, pdFALSE otherwise
+ * pdTRUE if successfully used item as applicable,
+ * pdFALSE if provided an invalid item,
+ * errQUEUE_FULL if item could not be queued for use
  */
 BaseType_t app_bt_car_use_item(car_item_t item)
 {
@@ -99,30 +101,28 @@ BaseType_t app_bt_car_use_item(car_item_t item)
         // Not in race yet
         ret = pdTRUE;
     }
-    else if ((race_state == RACE_STATE_ACTIVE) && (item > CAR_ITEM_MIN) && (item < CAR_ITEM_MAX))
+    else if (race_state == RACE_STATE_ACTIVE)
     {
         // Start speaker and possibly IR LED, sending item/sound effect with notifications
         switch (item)
         {
             case CAR_ITEM_SHOT:
-                xQueueSend(q_car, &item, 0); // give car i-frames
-                ret = pdTRUE;
+                xTaskNotify(xTaskAudioHandle, (uint32_t)AUDIO_SOUND_EFFECT_USE_SHOT, eSetValueWithOverwrite);
                 break;
             case CAR_ITEM_SHIELD:
-                // TODO Protect against hits
-                xQueueSend(q_car, &item, 0);
                 ret = xTaskNotify(xTaskAudioHandle, (uint32_t)AUDIO_SOUND_EFFECT_USE_SHIELD, eSetValueWithOverwrite);
                 break;
             case CAR_ITEM_BOOST:
-                // TODO Increase speed
-                xQueueSend(q_car, &item, 0);
                 ret = xTaskNotify(xTaskAudioHandle, (uint32_t)AUDIO_SOUND_EFFECT_BOOST, eSetValueWithOverwrite);
                 break;
             default:
-                break;
+                goto item_used;
         }
+        // Use the item. Handled in task car so that we can have invincibility frames when firing
+        ret = xQueueSend(q_car, &item, 0);
     }
 
+item_used:
     return ret;
 }
 
