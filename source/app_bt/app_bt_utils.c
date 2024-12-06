@@ -61,11 +61,10 @@
  *   @return None
  *
  */
-void print_bd_address(wiced_bt_device_address_t bdadr)
+void print_bd_address(wiced_bt_device_address_t bdadr) // TODO REMOVE
 {
     // Remove unused parameter warning
     (void)bdadr;
-    // printf("%02X:%02X:%02X:%02X:%02X:%02X \n",bdadr[0],bdadr[1],bdadr[2],bdadr[3],bdadr[4],bdadr[5]);
 }
 
 /**
@@ -81,24 +80,12 @@ void print_bd_address(wiced_bt_device_address_t bdadr)
 *   @return void
 *
 */
-void print_array(void * to_print, uint16_t len)
+void print_array(void * to_print, uint16_t len) // TODO REMOVE
 {
 
     // Remove unused variable warning
     (void)to_print;
     (void)len;
-    // uint16_t counter;
-
-    // for( counter = 0; counter<len;counter++ )
-    // {
-    //    if( 0 == counter % 16 )
-    //    {
-    //        // printf( "\n" );
-    //    }
-    //     // printf( "%02X ", *(((uint8_t *)(to_print)) + counter) );
-    // }
-    // // printf( "\n" );
-
 }
 
 /**

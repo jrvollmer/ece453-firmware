@@ -59,7 +59,6 @@
 #include "app_bt_gatt_handler.h"
 #include "app_hw_device.h"
 #include "app_bt_car.h"
-#include "task_console.h" // TODO REMOVE
 #ifdef ENABLE_BT_SPY_LOG
 #include "cybt_debug_uart.h"
 #endif
@@ -165,64 +164,60 @@ app_bt_gatt_req_cb (wiced_bt_gatt_attribute_request_t *p_attr_req,
              /* Attribute read request */
             gatt_status =                                                      \
             app_bt_gatt_req_read_handler(p_attr_req->conn_id, 
-                                                p_attr_req->opcode, 
-                                                &p_attr_req->data.read_req, 
-                                                p_attr_req->len_requested, 
-                                                p_error_handle);
-             break;
+                                         p_attr_req->opcode, 
+                                         &p_attr_req->data.read_req, 
+                                         p_attr_req->len_requested, 
+                                         p_error_handle);
+            break;
 
         case GATT_REQ_WRITE:
         case GATT_CMD_WRITE:
-             /* Attribute write request */
-             gatt_status =
-             app_bt_gatt_req_write_handler(p_attr_req->conn_id, 
-                                                  p_attr_req->opcode, 
-                                                  &p_attr_req->data.write_req, 
-                                                  p_attr_req->len_requested, 
-                                                  p_error_handle);
+            /* Attribute write request */
+            gatt_status =
+            app_bt_gatt_req_write_handler(p_attr_req->conn_id, 
+                                          p_attr_req->opcode, 
+                                          &p_attr_req->data.write_req, 
+                                          p_attr_req->len_requested, 
+                                          p_error_handle);
 
-             if ((GATT_REQ_WRITE == p_attr_req->opcode) &&
-                 (WICED_BT_GATT_SUCCESS == gatt_status))
-             {
-                 wiced_bt_gatt_write_req_t *p_write_request = &p_attr_req->data.write_req;
-                 wiced_bt_gatt_server_send_write_rsp(p_attr_req->conn_id,
-                                                     p_attr_req->opcode,
-                                                     p_write_request->handle);
-             }
-             break;
+            if ((GATT_REQ_WRITE == p_attr_req->opcode) &&
+                (WICED_BT_GATT_SUCCESS == gatt_status))
+            {
+                wiced_bt_gatt_write_req_t *p_write_request = &p_attr_req->data.write_req;
+                wiced_bt_gatt_server_send_write_rsp(p_attr_req->conn_id,
+                                                    p_attr_req->opcode,
+                                                    p_write_request->handle);
+            }
+            break;
 
         case GATT_REQ_MTU:
             gatt_status =                                                      \
             wiced_bt_gatt_server_send_mtu_rsp(p_attr_req->conn_id,
                                               p_attr_req->data.remote_mtu,
                                               CY_BT_MTU_SIZE);
-             break;
+            break;
 
         case GATT_HANDLE_VALUE_NOTIF:
-                    // printf("Notification send complete\n");
-             break;
+            break;
 
         case GATT_REQ_READ_BY_TYPE:
             gatt_status =                                                      \
             app_bt_gatt_req_read_by_type_handler(p_attr_req->conn_id, 
-                                                        p_attr_req->opcode, 
-                                                        &p_attr_req->data.read_by_type, 
-                                                        p_attr_req->len_requested, 
-                                                        p_error_handle);
+                                                 p_attr_req->opcode, 
+                                                 &p_attr_req->data.read_by_type, 
+                                                 p_attr_req->len_requested, 
+                                                 p_error_handle);
             break;
 
         case GATT_HANDLE_VALUE_CONF:
             {
-                // printf("Indication Confirmation received \n");
                 ble_state.flag_indication_sent = FALSE;
             }
-             break;
+            break;
 
         default:
-                // printf("ERROR: Unhandled GATT Connection Request case: %d\n",
-                    //    p_attr_req->opcode);
-                gatt_status = WICED_BT_GATT_ERROR;
-                break;
+            gatt_status = WICED_BT_GATT_ERROR;
+            break;
     }
 
     return gatt_status;
@@ -292,9 +287,6 @@ app_bt_gatt_req_read_handler(uint16_t conn_id,
     }
     attr_len_to_copy = puAttribute->cur_len;
 
-    // printf("read_handler: conn_id:%d Handle:%x offset:%d len:%d\n ",
-            // conn_id, p_read_req->handle, p_read_req->offset, attr_len_to_copy);
-
     if (p_read_req->offset >= puAttribute->cur_len)
     {
         return WICED_BT_GATT_INVALID_OFFSET;
@@ -335,22 +327,11 @@ app_bt_gatt_req_write_handler(uint16_t conn_id,
     wiced_bt_gatt_status_t gatt_status = WICED_BT_GATT_INVALID_HANDLE;
    *p_error_handle = p_write_req->handle;
 
-    // printf("write_handler: conn_id:%d Handle:0x%x offset:%d len:%d\n ",
-        //    conn_id, p_write_req->handle,
-        //    p_write_req->offset,
-        //    p_write_req->val_len );
-
-
     /* Attempt to perform the Write Request */
 
     gatt_status = app_bt_set_value(p_write_req->handle,
-                                         p_write_req->p_val,
-                                         p_write_req->val_len);
-
-    if(WICED_BT_GATT_SUCCESS != gatt_status)
-    {
-        // printf("WARNING: GATT set attr status 0x%x\n", gatt_status);
-    }
+                                   p_write_req->p_val,
+                                   p_write_req->val_len);
 
     return (gatt_status);
 }
@@ -388,7 +369,6 @@ app_bt_gatt_req_read_by_type_handler(uint16_t conn_id,
 
     if (NULL == p_rsp)
     {
-        // printf("No memory, len_requested: %d!!\n",len_requested);
         return WICED_BT_GATT_INSUF_RESOURCE;
     }
 
@@ -406,7 +386,6 @@ app_bt_gatt_req_read_by_type_handler(uint16_t conn_id,
 
         if ( NULL == (puAttribute = app_bt_find_by_handle(attr_handle)))
         {
-            // printf("found type but no attribute for %d \n",last_handle);
             app_bt_free_buffer(p_rsp);
             return WICED_BT_GATT_INVALID_HANDLE;
         }
@@ -430,10 +409,6 @@ app_bt_gatt_req_read_by_type_handler(uint16_t conn_id,
 
     if (0 == used_len)
     {
-        // printf("attr not found  start_handle: 0x%04x"
-            //    "end_handle: 0x%04x  Type: 0x%04x\n", p_read_req->s_handle,
-            //                                            p_read_req->e_handle,
-            //                                            p_read_req->uuid.uu.uuid16);
         app_bt_free_buffer(p_rsp);
         return WICED_BT_GATT_INVALID_HANDLE;
     }
@@ -463,10 +438,6 @@ app_bt_gatt_req_read_by_type_handler(uint16_t conn_id,
 wiced_bt_gatt_status_t
 app_bt_gatt_connection_up( wiced_bt_gatt_connection_status_t *p_status )
 {
-    // printf("Connected to peer device: ");
-    print_bd_address(p_status->bd_addr);
-    // printf("Connection ID '%d' \n", p_status->conn_id);
-
     /* Update the connection handler.  Save address of the connected device. */
     ble_state.conn_id = p_status->conn_id;
     memcpy(ble_state.remote_addr, p_status->bd_addr,
@@ -500,45 +471,19 @@ wiced_bt_gatt_status_t
 app_bt_gatt_connection_down(wiced_bt_gatt_connection_status_t *p_status)
 {
     wiced_result_t result;
-    // printf("Peer device disconnected: ");
-    print_bd_address(p_status->bd_addr);
 
     UNUSED_VARIABLE(result);
-
-    // printf("conn_id:%d reason:%s\n", p_status->conn_id,
-        //    get_bt_gatt_disconn_reason_name(p_status->reason));
 
     /* Resetting the device info */
     memset(ble_state.remote_addr, 0, BD_ADDR_LEN);
     ble_state.conn_id = 0;
 
-    pairing_mode = TRUE;
-    task_print_info("Disconnected %u", p_status->reason); // TODO REMOVE
-    // TODO Add an explicit control to disconnect and allow others to connect
-    // if (p_status->reason == GATT_CONN_TERMINATE_PEER_USER)
-    // {
-    //     // The client disconnected. Remove them from address resolution list
-    //     // to avoid weird issue with not being able to bond with other clients
-    //     result = wiced_bt_start_advertisements(BTM_BLE_ADVERT_OFF,
-    //                                            0,
-    //                                            NULL);
-    //     result &= wiced_bt_ble_address_resolution_list_clear_and_disable();
-    //     if (result == WICED_BT_SUCCESS)
-    //     {
-    //         /* Clear peer link keys and identity keys structure */
-    //         memset(&bond_info, 0, sizeof(bond_info));
-    //         memset(&identity_keys, 0, sizeof(identity_keys));
-    //     }
-    // }
-
     /* Start advertisements after disconnection */
+    pairing_mode = TRUE;
     result = wiced_bt_start_advertisements(BTM_BLE_ADVERT_UNDIRECTED_HIGH,
                                            0,
                                            NULL);
-    // if(result != WICED_BT_SUCCESS)
-    // {
-    //     // printf("Start advertisement failed: %d\n", result);
-    // }
+
     return WICED_BT_GATT_SUCCESS;
 }
 
@@ -745,7 +690,6 @@ wiced_bt_gatt_status_t app_bt_set_value(uint16_t attr_handle,
             default:
                 /* The write operation was not performed for the
                  * indicated handle */
-                // printf("Write Request to Invalid Handle: 0x%x\n", attr_handle);
                 gatt_status = WICED_BT_GATT_WRITE_NOT_PERMIT;
                 break;
         }
@@ -770,7 +714,6 @@ wiced_bt_gatt_status_t app_bt_set_value(uint16_t attr_handle,
 void app_bt_send_message(uint16_t handle)
 {
     wiced_bt_gatt_status_t status;
-    // printf("hello_sensor_send_message: CCCD:%d\n", app_hello_sensor_notify_client_char_config[0]);
 
     UNUSED_VARIABLE(status);
 

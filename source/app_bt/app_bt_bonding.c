@@ -95,7 +95,6 @@ void app_kv_store_init(void)
     /*Check if the kv-store initialization was successful*/
     if (CY_RSLT_SUCCESS != rslt)
     {
-        // printf("failed to initialize kv-store \n");
         CY_ASSERT(0);
     }
 }
@@ -118,11 +117,7 @@ cy_rslt_t app_bt_restore_bond_data(void)
     /* Read and restore contents of flash */
     uint32_t data_size = sizeof(bond_info);
     cy_rslt_t rslt = mtb_kvstore_read(&kvstore_obj, "bond_data", (uint8_t *)&bond_info, &data_size);
-    if (rslt != CY_RSLT_SUCCESS)
-    {
-        // printf("Bond data not present in the flash!\n");
-        return rslt;
-    }
+
     return rslt;
 }
 
@@ -144,10 +139,7 @@ cy_rslt_t app_bt_update_bond_data(void)
 {
     cy_rslt_t rslt = CY_RSLT_TYPE_ERROR;
     rslt = mtb_kvstore_write(&kvstore_obj, "bond_data", (uint8_t *)&bond_info, sizeof(bond_info));
-    if (CY_RSLT_SUCCESS != rslt)
-    {
-        // printf("Flash Write Error,Error code: %" PRIu32 "\n", rslt);
-    }
+
     return rslt;
 }
 
@@ -277,10 +269,6 @@ cy_rslt_t app_bt_save_device_link_keys(wiced_bt_device_link_keys_t *link_key)
                (uint8_t *)(link_key), sizeof(wiced_bt_device_link_keys_t));
 
         rslt = mtb_kvstore_write(&kvstore_obj, "bond_data", (uint8_t *)&bond_info, sizeof(bond_info));
-        if (CY_RSLT_SUCCESS != rslt)
-        {
-            // printf("Flash Write Error,Error code: %" PRIu32 "\n", rslt );
-        }
     }
     /* If there is no entry of keys in NVRAM, create a fresh entry in next free slot */
     else
@@ -289,10 +277,6 @@ cy_rslt_t app_bt_save_device_link_keys(wiced_bt_device_link_keys_t *link_key)
                (uint8_t *)(link_key), sizeof(wiced_bt_device_link_keys_t));
 
         rslt = mtb_kvstore_write(&kvstore_obj, "bond_data", (uint8_t *)&bond_info, sizeof(bond_info));
-        if (CY_RSLT_SUCCESS != rslt)
-        {
-            // printf("Flash Write Error,Error code: %" PRIu32 "\n", rslt );
-        }
     }
     return rslt;
 }
@@ -314,14 +298,6 @@ cy_rslt_t app_bt_save_local_identity_key(wiced_bt_local_identity_keys_t id_key)
 {
     memcpy(&identity_keys, (uint8_t *)&(id_key), sizeof(wiced_bt_local_identity_keys_t));
     cy_rslt_t rslt = mtb_kvstore_write(&kvstore_obj, "local_irk", (uint8_t *)&identity_keys, sizeof(wiced_bt_local_identity_keys_t));
-    if (CY_RSLT_SUCCESS == rslt)
-    {
-        // printf("Local identity Keys saved to Flash \n");
-    }
-    else
-    {
-        // printf("Flash Write Error,Error code: %" PRIu32 "\n", rslt );
-    }
 
     return rslt;
 }
