@@ -349,7 +349,7 @@ void app_bt_adv_stop_handler(void)
 {
     wiced_result_t result;
 
-    if ((!ble_state.conn_id) && (!pairing_mode))
+    if ((!ble_state.conn_id) && (!pairing_mode)) // TODO Should I remove the line setting pairing_mode to TRUE in the connection_down handler? Looks like this expects pairing mode to be false to start advertising
     {
         result =  wiced_bt_start_advertisements(BTM_BLE_ADVERT_UNDIRECTED_HIGH,
                                                 0,
