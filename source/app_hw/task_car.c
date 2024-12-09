@@ -220,7 +220,8 @@ void task_car(void *pvParameters) {
                 i_am_hit = false;
                 restore_after_hit = true;
             } else {
-                xQueueReceive(q_ble_car_joystick_y, &y, portMAX_DELAY);
+                // Wait for twice the expected write period from the RC controller
+                xQueueReceive(q_ble_car_joystick_y, &y, pdMS_TO_TICKS(200));
 
                 float32_t scaled_speed = speed * y;
 
